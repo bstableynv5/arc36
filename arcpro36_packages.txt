@@ -1,0 +1,306 @@
+# packages in environment at C:\Program Files\ArcGIS\Pro\bin\Python\envs\arcgispro-py3:
+#
+# Name                       Version          Build                   Channel
+annotated-types              0.6.0            py_2                    esri
+anyio                        4.7.0            py313haa95532_0
+anywidget                    0.9.18           py_0                    esri
+appdirs                      1.4.4            pyhd3eb1b0_0
+arcgis                       2.4.2            py313_267               esri
+arcgis-mapping               4.33.0           py_804                  esri
+arcgispro                    3.6              0                       esri
+arcpy                        3.6              py313_arcgispro_59466   esri
+arcpy-base                   3.6              py313_59466             esri
+argon2-cffi                  21.3.0           pyhd3eb1b0_0
+argon2-cffi-bindings         25.1.0           py313h02ab6af_0
+astor                        0.8.1            py313haa95532_1
+asttokens                    3.0.0            py313haa95532_0
+async-lru                    2.0.4            py_0                    esri
+attrs                        24.3.0           py313haa95532_0
+autograd                     1.7.0            py313haa95532_0
+autograd-gamma               0.5.0            py313haa95532_0
+aws-crt-cpp                  0.27.4           1                       esri
+aws-sdk-cpp-base             1.11.386         2                       esri
+azure-core                   1.12.0           py_0                    esri
+azure-storage-blob           12.8.0           py_0                    esri
+babel                        2.16.0           py313haa95532_0
+beautifulsoup4               4.13.5           py313haa95532_0
+black                        25.1.0           py313_1                 esri
+black-jupyter                25.1.0           1                       esri
+blas                         1.0              mkl
+bleach                       6.2.0            py313haa95532_0
+blinker                      1.9.0            py313haa95532_0
+blosc                        1.21.5           0                       esri
+bottleneck                   1.4.2            py313h2cb717b_0
+brotli-bin                   1.1.0            4                       esri
+brotli-python                1.0.9            py313h5da7b33_9
+brotlicffi                   1.0.9.2          py313h5da7b33_1
+c-ares                       1.34.5           0                       esri
+cachetools                   5.5.1            py313haa95532_0
+certifi                      2025.10.5        py313haa95532_0
+cffi                         1.17.1           py313h827c3e9_1
+cftime                       1.6.4            py313_1                 esri
+chardet                      5.2.0            py313haa95532_0
+charset-normalizer           3.3.2            pyhd3eb1b0_0
+click                        8.2.1            py313haa95532_0
+cloudpickle                  3.1.1            py313haa95532_0
+colorama                     0.4.6            py313haa95532_0
+comm                         0.2.2            py_0                    esri
+contourpy                    1.3.1            py313h214f63a_0
+cppzmq                       4.9.0            1                       esri
+crc32c                       2.7.1            py313h827c3e9_0
+cryptography                 43.0.1           py313_1                 esri
+csaps                        1.3.2            py_0                    esri
+cycler                       0.11.0           pyhd3eb1b0_0
+cytoolz                      1.0.1            py313h827c3e9_0
+dask                         2025.2.0         py_0                    esri
+dask-core                    2025.2.0         py_0                    esri
+debugpy                      1.8.16           py313h885b0b7_0
+decorator                    5.2.1            py313haa95532_0
+defusedxml                   0.7.1            pyhd3eb1b0_0
+distributed                  2025.2.0         py_0                    esri
+donfig                       0.8.1.post1      py313haa95532_0
+dpcpp-cpp-rt                 2024.2.1         arcgispro_1083          esri
+entrypoints                  0.4              py313haa95532_0
+et_xmlfile                   2.0.0            py313haa95532_0
+exceptiongroup               1.0.0rc9         pyhd8ed1ab_0            esri
+executing                    2.2.1            py313haa95532_0
+fissix                       24.4.24          py_0                    esri
+flake8                       7.1.1            py313haa95532_0
+fonttools                    4.55.3           py313h827c3e9_0
+formulaic                    0.6.2            py313haa95532_1
+freetype                     2.13.3           2                       esri
+fsspec                       2025.7.0         py313h4442805_0
+future                       1.0.0            py313_1                 esri
+gdal                         3.11.3           arcgispro_py313_171208  esri
+geomet                       1.0.0            py_0                    esri
+greenlet                     3.2.4            py313h885b0b7_0
+h11                          0.16.0           py313haa95532_0
+h5py                         3.14.0           arcgispro_py313_2       esri
+httpcore                     1.0.9            py313haa95532_0
+httpx                        0.28.1           py_0                    esri
+idna                         3.7              py313haa95532_0
+importlib-metadata           8.5.0            py313haa95532_0
+importlib_metadata           8.5.0            hd3eb1b0_0
+importlib_resources          6.4.0            py313haa95532_0
+iniconfig                    1.1.1            pyhd3eb1b0_0            esri
+intel-cmplr-lib-rt           2024.2.1         arcgispro_1083          esri
+intel-cmplr-lib-ur           2024.2.1         arcgispro_1083          esri
+intel-cmplr-lic-rt           2024.2.1         arcgispro_1083          esri
+intel-core                   2024.2.0         arcgispro_1             esri
+intel-fortran-rt             2024.2.1         arcgispro_1083          esri
+intel-openmp                 2024.2.1         arcgispro_1083          esri
+intel-sycl-rt                2024.2.1         arcgispro_1083          esri
+interface_meta               1.3.0            py313haa95532_1
+ipykernel                    6.29.5           pyh5f5efe1_0            esri
+ipython                      8.37.0           pyh3a91677_0            esri
+ipython_genutils             0.2.0            pyhd3eb1b0_1
+ipywidgets                   8.1.5            py_0                    esri
+isodate                      0.6.0            py_0                    esri
+jdcal                        1.4.1            pyhd3eb1b0_0
+jedi                         0.18.2           py_1                    esri
+jinja2                       3.1.6            py313haa95532_0
+jpeg                         9e               0                       esri
+json5                        0.9.25           py_0                    esri
+jsonschema                   4.25.0           py313haa95532_0
+jsonschema-specifications    2023.7.1         py313haa95532_0
+jupyter-lsp                  2.2.0            py_0                    esri
+jupyter_client               8.6.0            py_0                    esri
+jupyter_console              6.6.3            py_0                    esri
+jupyter_core                 5.8.1            pyh3a91677_0            esri
+jupyter_events               0.10.0           py_0                    esri
+jupyter_server               2.14.2           py_0                    esri
+jupyter_server_terminals     0.5.3            py313haa95532_0
+jupyterlab                   4.3.8            py_1                    esri
+jupyterlab_pygments          0.3.0            py_1                    esri
+jupyterlab_server            2.27.3           py_0                    esri
+jupyterlab_widgets           3.0.13           py_0                    esri
+kerchunk                     0.2.8            py_1                    esri
+keyring                      24.3.0           py_2                    esri
+kiwisolver                   1.4.8            py313h5da7b33_0
+krb5                         1.21.3           1                       esri
+libabseil                    20250127.0       1                       esri
+libarrow                     20.0.0           3                       esri
+libbrotlicommon              1.1.0            4                       esri
+libbrotlidec                 1.1.0            4                       esri
+libbrotlienc                 1.1.0            4                       esri
+libdeflate                   1.20             1                       esri
+libpdal-base                 2.9.0            4                       esri
+libpng                       1.6.43           1                       esri
+libprotobuf                  5.29.5           2                       esri
+libsodium                    1.0.20           0                       esri
+libthrift                    0.21.0           0                       esri
+libtiff                      4.7.1            0                       esri
+libutf8proc                  2.10.0           0                       esri
+libxml2                      2.14.5           arcgispro_1             esri
+libxslt                      1.1.43           2                       esri
+lifelines                    0.30.0           py_0                    esri
+locket                       1.0.0            py313haa95532_0
+lxml                         6.0.0            py313_3                 esri
+lz4                          4.3.2            py313h827c3e9_1
+lz4-c                        1.9.4            2                       esri
+markupsafe                   3.0.2            py313h827c3e9_0
+matplotlib                   3.9.4            py313_arcgispro_3       esri
+matplotlib-base              3.9.4            py313_arcgispro_3       esri
+matplotlib-inline            0.1.7            py_0                    esri
+mccabe                       0.7.0            pyhd3eb1b0_0
+mistune                      3.1.2            py313haa95532_0
+mkl                          2024.2.2         arcgispro_14            esri
+mkl-service                  2.4.2            py313_arcgispro_0       esri
+mkl_fft                      1.3.11           py313_arcgispro_4       esri
+mkl_random                   1.2.8            py313_arcgispro_2       esri
+mpmath                       1.3.0            py313haa95532_0
+msgpack-python               1.1.1            py313h5da7b33_0
+msrest                       0.6.21           py_0                    esri
+mypy_extensions              1.0.0            py313haa95532_0
+nbclassic                    1.1.0            py_1                    esri
+nbclient                     0.8.0            py_0                    esri
+nbconvert                    7.16.6           py_0                    esri
+nbformat                     5.10.4           py_0                    esri
+nest-asyncio                 1.6.0            py313haa95532_0
+netcdf4                      1.7.2            arcgispro_py313_2       esri
+networkx                     3.4.2            py313_1                 esri
+nlohmann_json                3.12.0           0                       esri
+notebook                     7.3.3            py_0                    esri
+notebook-shim                0.2.4            py_0                    esri
+numcodecs                    0.14.1           py313h4fc1ca9_0
+numexpr                      2.10.2           py313_1                 esri
+numpy                        2.2.0            py313_1                 esri
+numpy-base                   2.2.0            py313_1                 esri
+oauthlib                     3.2.2            py_0                    esri
+olefile                      0.46             pyhd3eb1b0_0
+openpyxl                     3.1.5            py313h827c3e9_1
+openssl                      3.0.17           1                       esri
+orc                          2.1.2            1                       esri
+overrides                    7.4.0            py313haa95532_0
+packaging                    25.0             py313haa95532_0
+pandas                       2.3.0            py313_0                 esri
+pandocfilters                1.5.1            py313haa95532_0
+parso                        0.8.4            py313haa95532_0
+partd                        1.4.2            py313haa95532_0
+pathspec                     0.9.0            py_0                    esri
+patsy                        1.0.1            py313haa95532_0
+pefile                       2022.5.30        pyhd8ed1ab_0            esri
+pickleshare                  0.7.5            pyhd3eb1b0_1003
+pillow                       11.3.0           py313_1                 esri
+pip                          25.2             pyhc872135_0
+platformdirs                 4.3.7            py313haa95532_0
+pluggy                       1.5.0            py313haa95532_0
+pro_notebook_integration     3.6              py313_4                 esri
+prometheus_client            0.20.0           py_0                    esri
+prompt-toolkit               3.0.47           py_0                    esri
+prompt_toolkit               3.0.47           0                       esri
+protobuf                     5.29.5           py313_5                 esri
+psutil                       7.0.0            py313h02ab6af_0
+psygnal                      0.11.0           py_0                    esri
+pure_eval                    0.2.3            py313haa95532_0
+puremagic                    1.15             py_0                    esri
+pyarrow                      20.0.0           py313_1                 esri
+pybind11                     2.13.6           0                       esri
+pybind11_json                0.2.13           3                       esri
+pycodestyle                  2.12.1           py313haa95532_0
+pycparser                    2.23             py313haa95532_0
+pydantic                     2.11.7           py_0                    esri
+pydantic-core                2.33.2           py313_0                 esri
+pyflakes                     3.2.0            py313haa95532_0
+pygments                     2.18.0           py_0                    esri
+pyjwt                        2.4.0            py_1                    esri
+pylerc                       4.0              py_0                    esri
+pyodbc                       5.2.0            py313h5da7b33_0
+pyparsing                    3.2.0            py313haa95532_0
+pypdf                        4.3.1            py_1                    esri
+pysocks                      1.7.1            py313haa95532_0
+pyspnego                     0.11.2           py313_0                 esri
+pytest                       8.4.2            py313haa95532_0
+python                       3.13.7           0                       esri
+python-dateutil              2.9.0post0       py313haa95532_2
+python-duckdb                1.3.2            py313_1                 esri
+python-fastjsonschema        2.20.0           py313haa95532_0
+python-gssapi                1.9.0            py313_0                 esri
+python-json-logger           3.2.1            py313haa95532_0
+python-pdal                  3.4.5            py313_1                 esri
+python_abi                   3.13             1_cp313                 esri
+pytz                         2025.1           py313_0                 esri
+pywin32-ctypes               0.2.2            py313haa95532_0
+pywin32-security             310              py313_0                 esri
+pywinpty                     2.0.15           py313h72d21ff_0
+pyyaml                       6.0.2            py313h827c3e9_0
+pyzmq                        27.1.0           py313h7149c55_0
+re2                          2025.06.26       0                       esri
+referencing                  0.30.2           py313haa95532_0
+regex                        2024.11.6        py313h827c3e9_0
+requests                     2.32.5           py313haa95532_0
+requests-gssapi              1.3.0            py_0                    esri
+requests-kerberos            0.14.0           pyhd3eb1b0_0
+requests-oauthlib            2.0.0            py313haa95532_0
+requests-toolbelt            1.0.0            py_0                    esri
+rfc3339-validator            0.1.4            py313haa95532_0
+rfc3986-validator            0.1.1            py313haa95532_0
+rpds-py                      0.22.3           py313h636fa0f_0
+ruamel.yaml                  0.18.10          py313h827c3e9_0
+ruamel.yaml.clib             0.2.12           py313h827c3e9_0
+saspy                        4.3.2            py_1                    esri
+scipy                        1.14.1           py313_2                 esri
+seaborn                      0.13.2           py313haa95532_3
+send2trash                   1.8.2            py313haa95532_1
+setuptools                   79.0.1           py313_0                 esri
+six                          1.16.0           py_0                    esri
+snappy                       1.2.2            0                       esri
+sniffio                      1.3.0            py313haa95532_0
+sortedcontainers             2.4.0            pyhd3eb1b0_0
+soupsieve                    2.5              py313haa95532_0
+sqlalchemy                   2.0.43           py313_0                 esri
+sqlite                       3.50.4           0                       esri
+sspilib                      0.3.1            py313_0                 esri
+stack_data                   0.5.1            py_0                    esri
+statsmodels                  0.14.5           py313_1                 esri
+sympy                        1.14.0           py313_0                 esri
+tbb                          2022.0.0         h214f63a_0
+tbb4py                       2022.0.0         py313h214f63a_0
+tblib                        3.1.0            py313haa95532_0
+terminado                    0.18.1           py313haa95532_0
+testpath                     0.5.0            py_0                    esri
+tinycss2                     1.1.1            py_0                    esri
+tk                           8.6.15           0                       esri
+tokenize-rt                  6.0.0            py_0                    esri
+toolz                        1.0.0            py313haa95532_0
+tornado                      6.5.1            py313h827c3e9_0
+tqdm                         4.67.1           py313h4442805_0
+traitlets                    5.14.3           py313haa95532_0
+truststore                   0.10.0           py_1                    esri
+typing-extensions            4.15.0           py313haa95532_0
+typing-inspection            0.4.0            py313haa95532_0
+typing_extensions            4.15.0           py313haa95532_0
+tzdata                       2025b            h04d1e81_0
+ucrt                         10.0.26100.1742  0                       esri
+ujson                        5.10.0           py313h5da7b33_1
+urllib3                      2.5.0            py313haa95532_0
+vc                           14.38            0                       esri
+vc14_runtime                 14.44.35208      h4927774_10
+vs2015_runtime               14.44.35208      ha6b5a95_10
+watchfiles                   0.24.0           py313h636fa0f_2
+wcwidth                      0.2.13           py313haa95532_0
+webencodings                 0.5.1            py313haa95532_2
+websocket-client             1.8.0            py313haa95532_0
+wheel                        0.45.1           py313haa95532_0
+widgetsnbextension           4.0.13           py_0                    esri
+win_inet_pton                1.1.0            py313haa95532_0
+winpty                       0.4.3            4
+wrapt                        1.17.0           py313h827c3e9_0
+xarray                       2025.4.0         py313haa95532_0
+xeus                         3.2.0            1                       esri
+xeus-python                  0.15.13          py313_0                 esri
+xeus-python-shell            0.6.3            2                       esri
+xeus-python-shell-raw        0.6.3            py_2                    esri
+xeus-zmq                     1.3.0            0                       esri
+xlrd                         2.0.1            pyhd3eb1b0_1
+xlwt                         1.3.0            py_0                    esri
+xtl                          0.7.5            0                       esri
+xz                           5.4.7            0                       esri
+yaml                         0.2.5            0                       esri
+zarr                         3.0.8            py_1                    esri
+zeromq                       4.3.5            ha9f60a1_8              esri
+zict                         3.0.0            py_0                    esri
+zipp                         3.21.0           py313haa95532_0
+zlib                         1.3.1            1                       esri
+zlib-ng                      2.2.4            2                       esri
+zstd                         1.5.7            0                       esri
