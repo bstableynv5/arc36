@@ -1,11 +1,9 @@
-name: arc36-prod
+name: arc36
 channels:
-  - conda-forge
-  - defaults
   - esri
+  - defaults
+  - conda-forge
 dependencies:
-  - _python_abi3_support=1.0=hd8ed1ab_2
-  - affine=2.4.0=py313haa95532_0
   - annotated-types=0.6.0=py_2
   - anyio=4.7.0=py313haa95532_0
   - anywidget=0.9.18=py_0
@@ -57,7 +55,6 @@ dependencies:
   - comm=0.2.2=py_0
   - contourpy=1.3.1=py313h214f63a_0
   - cppzmq=4.9.0=1
-  - cpython=3.13.11=py313hd8ed1ab_100
   - crc32c=2.7.1=py313h827c3e9_0
   - cryptography=43.0.1=py313_1
   - csaps=1.3.2=py_0
@@ -65,6 +62,7 @@ dependencies:
   - cytoolz=1.0.1=py313h827c3e9_0
   - dask=2025.2.0=py_0
   - dask-core=2025.2.0=py_0
+  - dask-geopandas=0.5.0=pyhd8ed1ab_0
   - debugpy=1.8.16=py313h885b0b7_0
   - decorator=5.2.1=py313haa95532_0
   - defusedxml=0.7.1=pyhd3eb1b0_0
@@ -75,7 +73,6 @@ dependencies:
   - et_xmlfile=2.0.0=py313haa95532_0
   - exceptiongroup=1.0.0rc9=pyhd8ed1ab_0
   - executing=2.2.1=py313haa95532_0
-  - ezdxf=1.4.2=py313h7084e01_1
   - fiona=1.10.1=py313_0
   - fissix=24.4.24=py_0
   - flake8=7.1.1=py313haa95532_0
@@ -136,8 +133,6 @@ dependencies:
   - keyring=24.3.0=py_2
   - kiwisolver=1.4.8=py313h5da7b33_0
   - krb5=1.21.3=1
-  - laspy=2.5.4=py313_0
-  - lazrs-python=0.6.2=py313_0
   - libabseil=20250127.0=1
   - libarrow=20.0.0=3
   - libbrotlicommon=1.1.0=4
@@ -162,13 +157,11 @@ dependencies:
   - lz4=4.3.2=py313h827c3e9_1
   - lz4-c=1.9.4=2
   - mapclassify=2.10.0=py_0
-  - markdown-it-py=4.0.0=py313haa95532_0
   - markupsafe=3.0.2=py313h827c3e9_0
   - matplotlib=3.9.4=py313_arcgispro_3
   - matplotlib-base=3.9.4=py313_arcgispro_3
   - matplotlib-inline=0.1.7=py_0
   - mccabe=0.7.0=pyhd3eb1b0_0
-  - mdurl=0.1.2=py313haa95532_0
   - mistune=3.1.2=py313haa95532_0
   - mkl=2024.2.2=arcgispro_14
   - mkl-service=2.4.2=py313_arcgispro_0
@@ -212,8 +205,6 @@ dependencies:
   - pip=25.2=pyhc872135_0
   - platformdirs=4.3.7=py313haa95532_0
   - pluggy=1.5.0=py313haa95532_0
-  - polars=1.36.1=pyh6a1acc5_0
-  - polars-runtime-32=1.36.1=py310hca7251b_0
   - pro_notebook_integration=3.6=py313_4
   - proj4=9.6.2.1=2
   - prometheus_client=0.20.0=py_0
@@ -244,9 +235,8 @@ dependencies:
   - pytest=8.4.2=py313haa95532_0
   - python=3.13.7=0
   - python-dateutil=2.9.0post0=py313haa95532_2
-  - python-duckdb=1.4.3=py313hfe59770_0
+  - python-duckdb=1.3.2=py313_1
   - python-fastjsonschema=2.20.0=py313haa95532_0
-  - python-gil=3.13.11=h4df99d1_100
   - python-gssapi=1.9.0=py313_0
   - python-json-logger=3.2.1=py313haa95532_0
   - python-pdal=3.4.5=py313_1
@@ -257,7 +247,6 @@ dependencies:
   - pywinpty=2.0.15=py313h72d21ff_0
   - pyyaml=6.0.2=py313h827c3e9_0
   - pyzmq=27.1.0=py313h7149c55_0
-  - rasterio=1.4.3=py313_5
   - re2=2025.06.26=0
   - referencing=0.30.2=py313haa95532_0
   - regex=2024.11.6=py313h827c3e9_0
@@ -268,7 +257,6 @@ dependencies:
   - requests-toolbelt=1.0.0=py_0
   - rfc3339-validator=0.1.4=py313haa95532_0
   - rfc3986-validator=0.1.1=py313haa95532_0
-  - rich=13.9.4=py_0
   - rpds-py=0.22.3=py313h636fa0f_0
   - rtree=1.4.1=py313h873b684_0
   - ruamel.yaml=0.18.10=py313h827c3e9_0
@@ -280,11 +268,9 @@ dependencies:
   - send2trash=1.8.2=py313haa95532_1
   - setuptools=79.0.1=py313_0
   - shapely=2.1.2=py313_arcgispro_0
-  - shellingham=1.5.4=py313haa95532_0
   - six=1.16.0=py_0
   - snappy=1.2.2=0
   - sniffio=1.3.0=py313haa95532_0
-  - snuggs=1.4.7=pyhd3eb1b0_0
   - sortedcontainers=2.4.0=pyhd3eb1b0_0
   - soupsieve=2.5=py313haa95532_0
   - sqlalchemy=2.0.43=py313_0
@@ -307,9 +293,6 @@ dependencies:
   - tqdm=4.67.1=py313h4442805_0
   - traitlets=5.14.3=py313haa95532_0
   - truststore=0.10.0=py_1
-  - typer=0.20.0=py313haa95532_0
-  - typer-slim=0.20.0=py313haa95532_0
-  - typer-slim-standard=0.20.0=py313haa95532_0
   - typing-extensions=4.15.0=py313haa95532_0
   - typing-inspection=0.4.0=py313haa95532_0
   - typing_extensions=4.15.0=py313haa95532_0
@@ -336,7 +319,6 @@ dependencies:
   - xeus-python-shell-raw=0.6.3=py_2
   - xeus-zmq=1.3.0=0
   - xlrd=2.0.1=pyhd3eb1b0_1
-  - xlsxwriter=3.2.9=pyhd8ed1ab_0
   - xlwt=1.3.0=py_0
   - xtl=0.7.5=0
   - xyzservices=2025.4.0=py313haa95532_0
@@ -349,4 +331,4 @@ dependencies:
   - zlib=1.3.1=1
   - zlib-ng=2.2.4=2
   - zstd=1.5.7=0
-prefix: C:\Users\Ben\miniconda3\envs\arc36-prod
+prefix: C:\Users\Ben\miniconda3\envs\arc36

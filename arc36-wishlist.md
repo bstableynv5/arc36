@@ -22,6 +22,7 @@ scikit-learn-intelex(py313),2025.10.0 -- can't solve environment?
 ezdxf,1.4.2
 polars(what python version?),1.36.1
 xlsxwriter,3.2.9
+dask-geopandas,0.5.0
 
 default
 -------
