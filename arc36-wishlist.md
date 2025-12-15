@@ -3,6 +3,7 @@
 1. scipy
 1. networkx
 1. pyarrow (for parquet support)
+1. python-duckdb,1.4.3
 
 # add from channel
 
@@ -36,9 +37,8 @@
 1. scikit-learn-intelex
 
 # possible extras?
-1. conda-forge::python-duckdb,1.4.3
-1. conda-forge::memory_profiler(what python version?),0.61.0 -- project not maintained?
 1. conda-forge::osmnx,2.0.7
+1. conda-forge::memory_profiler(what python version?),0.61.0 -- project not maintained?
 
 # don't need
 1. pygeos -- it is part of shapely since 2.0 (2023)
