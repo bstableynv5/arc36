@@ -22,6 +22,7 @@
 1. polars(what python version?),1.36.1
 1. xlsxwriter,3.2.9
 1. dask-geopandas,0.5.0
+1. momepy,0.10.0
 
 ## default
 1. ~~scikit-learn-intelex(py311),2023.1.1~~
@@ -37,6 +38,7 @@
 # possible extras?
 1. conda-forge::python-duckdb,1.4.3
 1. conda-forge::memory_profiler(what python version?),0.61.0 -- project not maintained?
+1. conda-forge::osmnx,2.0.7
 
 # don't need
 1. pygeos -- it is part of shapely since 2.0 (2023)
