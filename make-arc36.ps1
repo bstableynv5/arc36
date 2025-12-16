@@ -10,3 +10,6 @@ Write-Host
 Write-Host "==== Adding packages from conda-forge channel ===="
 conda install -y -c conda-forge ezdxf,polars,xlsxwriter,dask-geopandas,momepy
 # conda install -y -c conda-forge scikit-learn,scikit-learn-intelex
+Write-Host
+Write-Host "==== Adding package from pip ===="
+pip install scikit-learn-intelex,tbb4py,laszip
