@@ -8,5 +8,5 @@ Write-Host "==== Adding packages from esri channel ===="
 conda install -y -c esri geopandas,laspy,lazrs-python,rasterio,pyproj,fiona,scikit-learn
 Write-Host
 Write-Host "==== Adding packages from conda-forge channel ===="
-conda install -y -c conda-forge ezdxf,polars,xlsxwriter,python-duckdb
+conda install -y -c conda-forge ezdxf,polars,xlsxwriter,dask-geopandas,momepy
 # conda install -y -c conda-forge scikit-learn,scikit-learn-intelex
