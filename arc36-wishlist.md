@@ -18,7 +18,6 @@
 1. humanize,4.14.0
 
 ## conda-forge
-1. scikit-learn-intelex(py313),2025.10.0 -- can't solve environment?
 1. ezdxf,1.4.2
 1. polars(what python version?),1.36.1
 1. xlsxwriter,3.2.9
@@ -27,15 +26,19 @@
 1. tabulate,0.9.0
 
 ## default
-1. ~~scikit-learn-intelex(py311),2023.1.1~~
+1. ~~tbb4py,2022.3.0 -- can't solve environment~~
 
 ## internal
 1. pyvoronly
 1. condorize
 
 ## pip?
-1. laszip
-1. scikit-learn-intelex
+1. laszip,0.2.4
+1. scikit-learn-intelex,2025.10.0 -- removes tbb4py
+    - daal==2025.10.0
+    - tbb==2022.3.0 -- update from 2022.0.0 in base env
+    - tcmlib==1.4.1
+1. tbb4py==2022.3.0 -- added to match tbb==2022.3.0
 
 # possible extras?
 1. conda-forge::osmnx,2.0.7

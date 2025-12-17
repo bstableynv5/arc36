@@ -5,8 +5,11 @@ Write-Host "==== Activating ===="
 conda activate arc36-prod
 Write-Host
 Write-Host "==== Adding packages from esri channel ===="
-conda install -y -c esri geopandas,laspy,lazrs-python,rasterio,pyproj,fiona,scikit-learn
+conda install -y -c esri geopandas,laspy,lazrs-python,rasterio,pyproj,fiona,scikit-learn,humanize
 Write-Host
 Write-Host "==== Adding packages from conda-forge channel ===="
-conda install -y -c conda-forge ezdxf,polars,xlsxwriter,python-duckdb
+conda install -y -c conda-forge ezdxf,polars,xlsxwriter,dask-geopandas,momepy,tabulate
 # conda install -y -c conda-forge scikit-learn,scikit-learn-intelex
+Write-Host
+Write-Host "==== Adding package from pip ===="
+pip install scikit-learn-intelex,tbb4py,laszip
