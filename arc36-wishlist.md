@@ -15,7 +15,7 @@
 1. scikit-learn,1.6.1
 1. pyproj,3.7.2
 1. fiona,1.10.1
-
+1. humanize,4.14.0
 
 ## conda-forge
 1. scikit-learn-intelex(py313),2025.10.0 -- can't solve environment?
@@ -24,6 +24,7 @@
 1. xlsxwriter,3.2.9
 1. dask-geopandas,0.5.0
 1. momepy,0.10.0
+1. tabulate,0.9.0
 
 ## default
 1. ~~scikit-learn-intelex(py311),2023.1.1~~
