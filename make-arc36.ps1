@@ -1,3 +1,8 @@
+Write-Host "==== Removing existing arc36-prod ===="
+conda deactivate
+conda env remove -y -n arc36-prod
+
+Write-Host
 Write-Host "==== Cloning standard environment ===="
 conda create -n arc36-prod --clone arcgispro-py3
 Write-Host
@@ -12,4 +17,4 @@ conda install -y -c conda-forge ezdxf,polars,xlsxwriter,dask-geopandas,momepy,ta
 # conda install -y -c conda-forge scikit-learn,scikit-learn-intelex
 Write-Host
 Write-Host "==== Adding package from pip ===="
-pip install scikit-learn-intelex,tbb4py,laszip
+pip install scikit-learn-intelex tbb4py laszip
