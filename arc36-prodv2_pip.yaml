@@ -235,6 +235,7 @@ dependencies:
   - pycparser=2.23=py313haa95532_0
   - pydantic=2.11.7=py_0
   - pydantic-core=2.33.2=py313_0
+  - pyfakefs=6.0.0=py313haa95532_0
   - pyflakes=3.2.0=py313haa95532_0
   - pygments=2.18.0=py_0
   - pyjwt=2.4.0=py_1

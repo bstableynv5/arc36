@@ -1,3 +1,5 @@
+pyfakefs??
+
 # included in base env
 
 1. scipy
@@ -16,6 +18,7 @@
 1. pyproj,3.7.2
 1. fiona,1.10.1
 1. humanize,4.14.0
+1. pyfakefs,6.0.0
 
 ## conda-forge
 1. ezdxf,1.4.2
@@ -34,11 +37,11 @@
 
 ## pip?
 1. laszip,0.2.4
-1. scikit-learn-intelex,2025.10.0 -- removes tbb4py
+1. ~~scikit-learn-intelex,2025.10.0 -- removes tbb4py~~
     - daal==2025.10.0
     - tbb==2022.3.0 -- update from 2022.0.0 in base env
     - tcmlib==1.4.1
-1. tbb4py==2022.3.0 -- added to match tbb==2022.3.0
+1. ~~tbb4py==2022.3.0 -- added to match tbb==2022.3.0~~
 
 # possible extras?
 1. conda-forge::osmnx,2.0.7

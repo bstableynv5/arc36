@@ -5,16 +5,17 @@ conda env remove -y -n arc36-prod
 Write-Host
 Write-Host "==== Cloning standard environment ===="
 conda create -n arc36-prod --clone arcgispro-py3
+# conda create -n arc36-prod --clone C:\ArcGIS_360\ArcGIS\Pro\bin\Python\envs\arcgispro-py3
 Write-Host
 Write-Host "==== Activating ===="
 conda activate arc36-prod
 Write-Host
 Write-Host "==== Adding packages from esri channel ===="
-conda install -y -c esri geopandas,laspy,lazrs-python,rasterio,pyproj,fiona,scikit-learn,humanize
+conda install -y -c esri geopandas,laspy,lazrs-python,rasterio,pyproj,fiona,scikit-learn,humanize,pyfakefs
 Write-Host
 Write-Host "==== Adding packages from conda-forge channel ===="
-conda install -y -c conda-forge ezdxf,polars,xlsxwriter,dask-geopandas,momepy,tabulate
+conda install -y -c conda-forge ezdxf,polars,xlsxwriter,dask-geopandas,momepy,tabulate,memory_profiler
 # conda install -y -c conda-forge scikit-learn,scikit-learn-intelex
 Write-Host
 Write-Host "==== Adding package from pip ===="
-pip install scikit-learn-intelex tbb4py laszip
+pip install laszip # scikit-learn-intelex tbb4py
