@@ -4,8 +4,8 @@ conda env remove -y -n arc36-prod
 
 Write-Host
 Write-Host "==== Cloning standard environment ===="
-conda create -n arc36-prod --clone arcgispro-py3
-# conda create -n arc36-prod --clone C:\ArcGIS_360\ArcGIS\Pro\bin\Python\envs\arcgispro-py3
+# conda create -n arc36-prod --clone arcgispro-py3
+conda create -n arc36-prod --clone C:\ArcGIS_360\ArcGIS\Pro\bin\Python\envs\arcgispro-py3
 Write-Host
 Write-Host "==== Activating ===="
 conda activate arc36-prod
