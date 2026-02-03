@@ -29,3 +29,6 @@ For testing we require both Arc 3.1 and 3.6 installed on the same machine. Getti
         install_dir = None # ignore this line and everything below it
     ```
 5. You should now be able to import arcpy from `arc36-prod`.
+
+## Observered issues
+- `__file__` within atbx (eg validation code) refers to file inside atbx, not the atbx itself. Means we will need to update these to adjust the paths.
