@@ -32,8 +32,9 @@ pyfakefs??
 1. ~~tbb4py,2022.3.0 -- can't solve environment~~
 
 ## internal
-1. pyvoronly
+1. pyvoronoi, >=1.2.6
 1. condorize
+1. ~~pyvoronly?~~
 
 ## pip?
 1. laszip,0.2.4

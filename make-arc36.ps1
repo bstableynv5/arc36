@@ -17,5 +17,9 @@ Write-Host "==== Adding packages from conda-forge channel ===="
 conda install -y -c conda-forge ezdxf,polars,xlsxwriter,dask-geopandas,momepy,tabulate,memory_profiler
 # conda install -y -c conda-forge scikit-learn,scikit-learn-intelex
 Write-Host
-Write-Host "==== Adding package from pip ===="
+Write-Host "==== Adding packages from pip ===="
 pip install laszip # scikit-learn-intelex tbb4py
+Write-Host
+Write-Host "==== Adding inhouse packages from pip ===="
+pip install I:\test\ARC_PRO_CONDA\packages\pyvoronoi-1.2.7a0-cp313-cp313-win_amd64.whl
+pip install I:\test\ARC_PRO_CONDA\packages\condorize-5.1.1a0-py3-none-any.whl
