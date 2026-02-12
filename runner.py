@@ -1,16 +1,21 @@
 import configparser
-from dataclasses import dataclass, field
+import shutil
+from dataclasses import dataclass, field, replace
 from datetime import datetime as dt  # broken for no reason
 from itertools import chain
 from pathlib import Path
+from pprint import pprint
+from tempfile import TemporaryDirectory
 from typing import Any, Union
 
 import arcpy
 
-toolbox_path: str = (
-    r"I:\test\ArcGISPro_VersionTesting\toolboxes\NV5_Tools_v0.3.0\nv5_toolbox_v0.3.0.atbx"
-)
+# toolbox_path: str = (
+#     r"I:\test\ArcGISPro_VersionTesting\toolboxes\NV5_Tools_v0.3.0\nv5_toolbox_v0.3.0.atbx"
+# )
+#
 # toolname: str = "AOILandCover"
+#
 # params: dict[str, Any] = {
 #     "input_fc": r"I:\test\ben\landcover\duke_giant\merged_spans.shp",
 #     "output_fc": r"I:\test\ben\landcover\duke_giant\merged_spans_landcover.shp",
@@ -20,8 +25,7 @@ toolbox_path: str = (
 #     "dissolve_all": True,
 #     "group_field": None,
 # }
-
-
+#
 # test_config = f"test.{tool_alias}.ini"
 
 
@@ -43,7 +47,7 @@ class Test:
     """absolute path to atbx/tbx"""
     alias: str
     """tool name/alias, not display name"""
-    description: str = "default"
+    description: str = ""
     """SHORT description of test"""
     parameters: list[Parameter] = field(default_factory=list)
     """extracted parameter info"""
@@ -52,9 +56,18 @@ class Test:
 
     @property
     def filename(self) -> str:
-        return f"test.{self.alias}.{self.description.replace(' ', '_')}.ini"
+        return f"test.{self.alias}.default.ini"
 
     def terrible_ini(self) -> str:
+
+        parameter_lines = []
+        for p in self.parameters:
+            parameter_lines.append(f'; display name: {p.display_name} | type: {p.datatype}')
+            parameter_lines.append(f'{p.name} = {p.value}')
+        parameter_content = "\n".join(parameter_lines)
+
+        outputs_content = "\n".join(self.outputs)  # this is a bit weird ini format
+
         now = dt.now()
         content = f'''; generated {now:%Y-%m-%d %H:%M:%S}
 [test]
@@ -66,11 +79,36 @@ alias = {self.alias}
 description = {self.description}
 
 [parameters]
+; tool input parameters.
+{parameter_content}
+
+[outputs]
+; list expected output files one per line.
+{outputs_content}
 '''
-        for p in self.parameters:
-            content += f'; display name: {p.display_name} | type: {p.datatype}\n'
-            content += f'{p.name} = {p.value}\n'
         return content
+
+    def resolve_inputs(self, input_dir: Path, inputs_dirname: str = "inputs") -> list[Parameter]:
+        """stick together the relative parameter inputs with input_dir"""
+        # TODO: improve this function?
+        resolved: list[Parameter] = []
+        for p in self.parameters:
+            path_parts = Path(p.value).parts  # is there a better way?
+            if path_parts and path_parts[0] == inputs_dirname:  # meh hardcoded
+                value = input_dir.joinpath(*path_parts[1:])
+                target = str(input_dir.parent / value)
+                resolved.append(replace(p, value=target))
+            else:
+                resolved.append(p)
+
+        return resolved
+
+    def resolve_outputs(self, input_dir: Path, output_dir: Path) -> list[tuple[Path, Path]]:
+        return [(input_dir / src, output_dir / src) for src in self.outputs]
+
+
+def parameter_dict(params: list[Parameter]) -> dict[str, Any]:
+    return {p.name: p.value for p in params}
 
 
 def get_parameters(toolbox_path: Union[str, Path], tool_alias: str) -> list[Parameter]:
@@ -102,17 +140,25 @@ def make_tests(toolbox_path: Union[str, Path]) -> list[Test]:
 
 
 def parse_test_ini(contents: str) -> Test:
-    parser = configparser.ConfigParser()
+    parser = configparser.ConfigParser(allow_no_value=True)
     parser.read_string(contents)
     return Test(
         toolbox=parser["test"]["toolbox"],
         alias=parser["test"]["alias"],
-        description=parser["test"]["description"] if parser["test"]["description"] else "default",
+        description=parser["test"]["description"],
         parameters=[Parameter(name=k, value=v) for k, v in parser["parameters"].items()],
+        outputs=[str(k).strip(" '\"") for k, _ in parser["outputs"].items()],
     )
     # d = dict(parser["tool"])
     # d["parameters"] = dict(parser["parameters"])
     # arcpy.AddMessage(str(d))
+
+
+def find_tests(root: Union[str, Path]) -> list[tuple[Path, Test]]:
+    root = Path(root)
+    test_configs = root.glob("**/test*.ini")
+    tests = [(c.absolute(), parse_test_ini(c.read_text())) for c in test_configs]
+    return tests
 
 
 def find_toolboxes(root: Union[str, Path]) -> list[Test]:
@@ -120,7 +166,6 @@ def find_toolboxes(root: Union[str, Path]) -> list[Test]:
     toolboxes = chain(root.glob("*/*.atbx"), root.glob("*/*.tbx"))
     tests: list[Test] = []
     for toolbox in toolboxes:
-        print(toolbox)
         tests.extend(make_tests(toolbox))
     return tests
 
@@ -132,11 +177,39 @@ def run(toolbox_path: str, tool_alias: str, params: dict[str, Any]):
 
 
 def main():
-    tests = find_toolboxes(r"I:\test\ArcGISPro_VersionTesting\toolboxes")
-    tests_dir = Path("tests")
-    tests_dir.mkdir(exist_ok=True)
-    for t in tests:
-        Path(tests_dir, t.filename).write_text(t.terrible_ini())
+    # automatic creation of test configs
+    # tests = find_toolboxes(r"I:\test\ArcGISPro_VersionTesting\toolboxes")
+    # tests_dir = Path("tests")
+    # tests_dir.mkdir(exist_ok=True)
+    # for t in tests:
+    #     Path(tests_dir, t.filename).write_text(t.terrible_ini())
+
+    # running all tests found
+    for test_path, test in find_tests(r"I:\test\ArcGISPro_VersionTesting\tests"):
+        inputs = test_path.parent / "inputs"
+        outputs = test_path.parent / f"outputs_{test_path.stem}"  # TODO: not sure about this
+
+        with TemporaryDirectory(dir=test_path.parent, prefix="inputs_") as temp_inputs:
+            # copy inputs to temp
+            temp_inputs = Path(temp_inputs)
+            shutil.copytree(str(inputs), str(temp_inputs), dirs_exist_ok=True)
+            final_params = test.resolve_inputs(temp_inputs)  # inputs_dirname=inputs.stem
+            transfers = test.resolve_outputs(temp_inputs, outputs)
+            pprint(final_params)
+            pprint(transfers)
+            # run on temp inputs
+            run(test.toolbox, test.alias, parameter_dict(final_params))
+            # copy outputs
+            shutil.rmtree(outputs, ignore_errors=True)
+            outputs.mkdir(exist_ok=True)
+            for src, dst in transfers:
+                print(src, dst)
+                if src.is_file():
+                    shutil.copyfile(str(src), str(dst))
+                elif src.is_dir():
+                    shutil.copytree(str(src), str(dst))
+                else:
+                    raise Exception("BAD")
 
 
 if __name__ == "__main__":
