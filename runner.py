@@ -9,7 +9,7 @@ from datetime import datetime as dt  # broken for no reason
 from datetime import timedelta
 from itertools import chain
 from pathlib import Path
-from tempfile import TemporaryDirectory
+from tempfile import gettempdir
 from typing import Any, Generator, Literal, Union
 
 import arcpy
@@ -21,17 +21,22 @@ EXTRA_PSEUDO_ISO_FMT = "%Y%m%d%H%M%S"
 real_stdout = sys.stdout
 real_stderr = sys.stderr
 
+# {run_id:03d}_env.log run
+# {run_id:03d}_{env}_{logger.name}.log test
 
-def setup_test_logger(test_path: Path, run_id: int, env: str) -> logging.Logger:
-    logger = logging.getLogger(test_path.stem)
+
+def setup_logger(name: str, log_file: Union[Path, str]) -> logging.Logger:
+    log_file = Path(log_file)
+
+    logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
 
     formatter = logging.Formatter("%(asctime)s:%(levelname)5s: %(message)s", datefmt=PSEUDO_ISO_FMT)
 
-    log_dir = test_path.parent / "logs"
-    log_dir.mkdir(exist_ok=True)
-    logname = f"{run_id:03d}_{env}_{logger.name}_{dt.now():{EXTRA_PSEUDO_ISO_FMT}}.log"
-    fh = logging.FileHandler(str(log_dir / logname), mode="w", encoding="utf-8")
+    log_file.parent.mkdir(exist_ok=True, parents=True)
+    datetag = f"_{dt.now():{EXTRA_PSEUDO_ISO_FMT}}"
+    log_file = log_file.with_stem(log_file.stem + datetag)
+    fh = logging.FileHandler(str(log_file), mode="w", encoding="utf-8")
     fh.setFormatter(formatter)
     fh.setLevel(logging.DEBUG)
     logger.addHandler(fh)
@@ -256,11 +261,14 @@ class OutputCapture:
 def run_single_test(test_path: Path, run_id: int, env: Literal["baseline", "target"]):
     # need run id, env
     test = parse_test_ini(test_path.read_text())
-    print("PARSED TEST")
+    # print("PARSED TEST")
     test_id = test_path.stem
-    logger = setup_test_logger(test_path, run_id, env)
+    logger = setup_logger(test_id, test_path.parent / "logs" / f"{run_id:03d}_{env}_{test_id}.log")
     with OutputCapture(logger):
+        temp_inputs_parent = Path(gettempdir()) if test.run_local else test_path.parent
+
         inputs = test_path.parent / "inputs"
+        temp_inputs = temp_inputs_parent / f"inputs_{env}_{test_id}"
         outputs = test_path.parent / f"outputs_{env}_{test_id}"  # TODO: not sure about this
 
         logger.debug(f"{run_id=}")
@@ -271,6 +279,7 @@ def run_single_test(test_path: Path, run_id: int, env: Literal["baseline", "targ
         logger.info(f"Description: {test.description}")
         logger.info(f"Run Local:   {test.run_local}")
         logger.debug(f"{inputs=!s}")
+        logger.debug(f"{temp_inputs=!s}")
         logger.debug(f"{outputs=!s}")
 
         if len(list(inputs.glob("*"))) == 0:
@@ -280,21 +289,20 @@ def run_single_test(test_path: Path, run_id: int, env: Literal["baseline", "targ
         # running the inputs from network drive is slooooow
         # TODO: something weird happening with tempdir deletion. gdb stays opened by some process.
         # blast2dem creates a feature layer...
-        temp_dir_parent = None if test.run_local else test_path.parent
-        temp_inputs = TemporaryDirectory(dir=temp_dir_parent, prefix=f"inputs_{env}_").name
+
+        # temp_inputs = TemporaryDirectory(dir=temp_dir_parent, prefix=f"inputs_{env}_").name
         # with TemporaryDirectory(dir=temp_dir_parent, prefix="inputs_") as temp_inputs:
+        # temp_inputs = Path(temp_inputs)
+
         # copy inputs to temp
-        temp_inputs = Path(temp_inputs)
-        logger.debug(f"{temp_inputs=!s}")
         logger.info("copying inputs to temp directory")
+        temp_inputs.mkdir(exist_ok=True)
         shutil.copytree(str(inputs), str(temp_inputs), dirs_exist_ok=True)
-        final_params = test.resolve_inputs(temp_inputs)  # inputs_dirname=inputs.stem
-        transfers = test.resolve_outputs(temp_inputs, outputs)
-        logger.debug(parameter_dict(final_params))
-        logger.debug([(str(src), str(dst)) for src, dst in transfers])
 
         # run on temp inputs
         try:
+            final_params = test.resolve_inputs(temp_inputs)  # inputs_dirname=inputs.stem
+            logger.debug(parameter_dict(final_params))
             start = time.perf_counter()
             logger.info("running...")
             logger.debug("\n--- start tool output ---")
@@ -307,6 +315,8 @@ def run_single_test(test_path: Path, run_id: int, env: Literal["baseline", "targ
             return
 
         # copy outputs
+        transfers = test.resolve_outputs(temp_inputs, outputs)
+        logger.debug([(str(src), str(dst)) for src, dst in transfers])
         shutil.rmtree(outputs, ignore_errors=True)
         if transfers:
             logger.info("copying expected outputs to output directory")
@@ -340,6 +350,7 @@ class GeneralConfig:
     root_dir: str  # abs path I:\test\ArcGISPro_VersionTesting
     toolbox_dir: str  # toolboxes
     tests_dir: str  # tests
+    database: str  # sqlite database
 
 
 def create_new_tests() -> int:
@@ -364,32 +375,44 @@ def main():
     # count_created = create_new_tests()
     # print(f"created {count_created} new tests")
 
-    # SUBCOMMAND 2 - run single test
+    # SUBCOMMAND 2 - run single test -- for running single in subprocess
     if len(sys.argv) == 2:
-        print("SINGLE")
+        # print("SINGLE")
         run_single_test(Path(sys.argv[1]), 0, "baseline")
-    # SUBCOMMAND 3 - run waiting tests for env
+    # SUBCOMMAND 3 - run waiting tests for env -- this will be run periodically via "cron"
     else:
         # running all tests found
-        print("RUN ALL")
-        print(str(sys.argv))
-        for test_path, test in find_tests(r"I:\test\ArcGISPro_VersionTesting\tests"):
-            print("ATTEMPT RUN")
-            subprocess.run(
-                [
-                    r"C:\Users\ben.stabley\AppData\Local\ESRI\conda\envs\arcgispro-py3_prod_env_v1.4\python.exe",
-                    "runner.py",
-                    str(test_path),
-                ]
-            )
-            for tempdir in test_path.parent.glob("inputs_*"):  # TODO: need targeted delete
-                print("RM", tempdir)
-                shutil.rmtree(str(tempdir))
+        root = Path(r"I:\test\ArcGISPro_VersionTesting")
+        run_id = 0
+        env = "baseline"
+        env_python = r"C:\Users\ben.stabley\AppData\Local\ESRI\conda\envs\arcgispro-py3_prod_env_v1.4\python.exe"
+
+        tests_dir = root / "tests"
+        log_dir = root / "logs"
+
+        logger = setup_logger(f"run_{run_id}", log_dir / f"{run_id:03d}_{env}.log")
+        logger.info("RUN ALL")
+        logger.debug(f"{env=}")
+        logger.debug(f"{env_python=}")
+        logger.debug(f"{tests_dir=}")
+
+        tests = list(find_tests(tests_dir))
+        logger.info(f"found {len(tests)} tests to run")
+        for i, (test_path, test) in enumerate(tests):
+            logger.debug(f"{i} RUN {test_path.relative_to(tests_dir)}")
+            subprocess.run([env_python, "runner.py", str(test_path)])
+
+            temp_inputs = f"inputs_{env}_{test_path.stem}"
+            for tempdir in (test_path.parent, Path(gettempdir())):
+                rm = tempdir / temp_inputs
+                logger.debug(f"REMOVE {rm}")
+                shutil.rmtree(str(rm), ignore_errors=True)
+        logger.info("FINISHED ALL")
 
     # --- env independent ---
     # SUBCOMMAND 1 - see above
     # SUBCOMMAND 4 - enqueue tests for both envs, option to skip tests where both envs passed
-    # SUBCOMMAND 5 - update sqlite database with test results
+    # SUBCOMMAND 5 - ?update sqlite database with test results
 
 
 if __name__ == "__main__":
