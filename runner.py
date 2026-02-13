@@ -1,5 +1,6 @@
 import configparser
 import logging
+import re
 import shutil
 import subprocess
 import sys
@@ -95,9 +96,11 @@ class Test:
     outputs: list[str] = field(default_factory=list)
     """output files from script to be kept and compared"""
 
-    @property
-    def filename(self) -> str:
-        return f"test.{self.alias}.default.ini"
+    def test_path(self, tests_dir: Path, variant: str = "default") -> Path:
+        toolbox_name = Path(self.toolbox).stem.lower()
+        toolbox_name = re.sub(r"\W", r"_", toolbox_name)  # \W = [^a-zA-Z0-9_]
+        test_id = ".".join(["test", toolbox_name, self.alias, variant])
+        return tests_dir / test_id / f"{test_id}.ini"
 
     def terrible_ini(self) -> str:
 
@@ -264,80 +267,81 @@ def run_single_test(test_path: Path, run_id: int, env: Literal["baseline", "targ
     # print("PARSED TEST")
     test_id = test_path.stem
     logger = setup_logger(test_id, test_path.parent / "logs" / f"{run_id:03d}_{env}_{test_id}.log")
-    with OutputCapture(logger):
-        temp_inputs_parent = Path(gettempdir()) if test.run_local else test_path.parent
 
-        inputs = test_path.parent / "inputs"
-        temp_inputs = temp_inputs_parent / f"inputs_{env}_{test_id}"
-        outputs = test_path.parent / f"outputs_{env}_{test_id}"  # TODO: not sure about this
+    temp_inputs_parent = Path(gettempdir()) if test.run_local else test_path.parent
 
-        logger.debug(f"{run_id=}")
-        logger.debug(f"{env=}")
-        logger.info(f"Test:        {test_id}")
-        logger.info(f"Toolbox:     {test.toolbox}")
-        logger.info(f"Alias:       {test.alias}")
-        logger.info(f"Description: {test.description}")
-        logger.info(f"Run Local:   {test.run_local}")
-        logger.debug(f"{inputs=!s}")
-        logger.debug(f"{temp_inputs=!s}")
-        logger.debug(f"{outputs=!s}")
+    inputs = test_path.parent / "inputs"
+    temp_inputs = temp_inputs_parent / f"inputs_{env}_{test_id}"
+    outputs = test_path.parent / f"outputs_{env}_{test_id}"  # TODO: not sure about this
 
-        if len(list(inputs.glob("*"))) == 0:
-            logger.error(f"FAIL: {test_id}. No inputs.")
-            return
+    logger.debug(f"{run_id=}")
+    logger.debug(f"{env=}")
+    logger.info(f"Test:        {test_id}")
+    logger.info(f"Toolbox:     {test.toolbox}")
+    logger.info(f"Alias:       {test.alias}")
+    logger.info(f"Description: {test.description}")
+    logger.info(f"Run Local:   {test.run_local}")
+    logger.debug(f"{inputs=!s}")
+    logger.debug(f"{temp_inputs=!s}")
+    logger.debug(f"{outputs=!s}")
 
-        # running the inputs from network drive is slooooow
-        # TODO: something weird happening with tempdir deletion. gdb stays opened by some process.
-        # blast2dem creates a feature layer...
+    if len(list(inputs.glob("*"))) == 0:
+        logger.error(f"FAIL: {test_id}. No inputs.")
+        return
 
-        # temp_inputs = TemporaryDirectory(dir=temp_dir_parent, prefix=f"inputs_{env}_").name
-        # with TemporaryDirectory(dir=temp_dir_parent, prefix="inputs_") as temp_inputs:
-        # temp_inputs = Path(temp_inputs)
+    # running the inputs from network drive is slooooow
+    # TODO: something weird happening with tempdir deletion. gdb stays opened by some process.
+    # blast2dem creates a feature layer...
 
-        # copy inputs to temp
-        logger.info("copying inputs to temp directory")
-        temp_inputs.mkdir(exist_ok=True)
-        shutil.copytree(str(inputs), str(temp_inputs), dirs_exist_ok=True)
+    # temp_inputs = TemporaryDirectory(dir=temp_dir_parent, prefix=f"inputs_{env}_").name
+    # with TemporaryDirectory(dir=temp_dir_parent, prefix="inputs_") as temp_inputs:
+    # temp_inputs = Path(temp_inputs)
 
-        # run on temp inputs
-        try:
-            final_params = test.resolve_inputs(temp_inputs)  # inputs_dirname=inputs.stem
-            logger.debug(parameter_dict(final_params))
-            start = time.perf_counter()
-            logger.info("running...")
-            logger.debug("\n--- start tool output ---")
+    # copy inputs to temp
+    logger.info("copying inputs to temp directory")
+    temp_inputs.mkdir(exist_ok=True)
+    shutil.copytree(str(inputs), str(temp_inputs), dirs_exist_ok=True)
+
+    # run on temp inputs
+    try:
+        final_params = test.resolve_inputs(temp_inputs)  # inputs_dirname=inputs.stem
+        logger.debug(parameter_dict(final_params))
+        start = time.perf_counter()
+        logger.info("running...")
+        logger.debug("\n--- start tool output ---")
+        with OutputCapture(logger):
             run(test.toolbox, test.alias, parameter_dict(final_params))
-            logger.debug("\n---  end tool output  ---")
-            took = time.perf_counter() - start
-            logger.info(f"took {timedelta(seconds=took)}")
-        except Exception as e:
-            logger.error(f"FAIL: {test_id}. Exception: {e}")
-            return
+        logger.debug("\n---  end tool output  ---")
+        took = time.perf_counter() - start
+        logger.info(f"took {timedelta(seconds=took)}")
+    except Exception as e:
+        logger.error(f"FAIL: {test_id}. Exception: {e}")
+        return
 
-        # copy outputs
-        transfers = test.resolve_outputs(temp_inputs, outputs)
-        logger.debug([(str(src), str(dst)) for src, dst in transfers])
-        shutil.rmtree(outputs, ignore_errors=True)
-        if transfers:
-            logger.info("copying expected outputs to output directory")
-            outputs.mkdir(exist_ok=True)
-            for i, (src, dst) in enumerate(transfers):
-                logger.debug(f"{i} {src=!s}")
-                logger.debug(f"{i} {dst=!s}")
-                if src.is_file():
-                    shutil.copyfile(str(src), str(dst))
-                elif src.is_dir():
-                    shutil.copytree(str(src), str(dst))
-                else:
-                    logger.critical("BAD")
-                    raise Exception("BAD")
-        else:
-            logger.info("saving no outputs")
+    # copy outputs
+    transfers = test.resolve_outputs(temp_inputs, outputs)
+    logger.debug([(str(src), str(dst)) for src, dst in transfers])
+    shutil.rmtree(outputs, ignore_errors=True)
+    if transfers:
+        logger.info("copying expected outputs to output directory")
+        outputs.mkdir(exist_ok=True)
+        for i, (src, dst) in enumerate(transfers):
+            logger.debug(f"{i} {src=!s}")
+            logger.debug(f"{i} {dst=!s}")
+            if src.is_file():
+                shutil.copyfile(str(src), str(dst))
+            elif src.is_dir():
+                shutil.copytree(str(src), str(dst))
+            else:
+                logger.critical("BAD")
+                raise Exception("BAD")
+    else:
+        logger.info("saving no outputs")
 
-        # delete_temp_inputs_cause_arcpy_is_stupid(temp_inputs)
-        # logger.info("exit tempdir")
+    # delete_temp_inputs_cause_arcpy_is_stupid(temp_inputs)
+    # logger.info("exit tempdir")
 
-        logger.info("test finished\n")
+    logger.info("test finished\n")
 
 
 @dataclass(frozen=True)
@@ -348,7 +352,7 @@ class GeneralConfig:
     target_python: str  # abs path to env python.exe
 
     root_dir: str  # abs path I:\test\ArcGISPro_VersionTesting
-    toolbox_dir: str  # toolboxes
+    toolboxes_dir: str  # toolboxes
     tests_dir: str  # tests
     database: str  # sqlite database
 
@@ -359,12 +363,13 @@ def create_new_tests() -> int:
     tests_dir.mkdir(exist_ok=True)
     count = 0
     for t in tests:
-        toolbox_dir = tests_dir / Path(t.toolbox).stem.lower().replace(" ", "_")
-        existing_test = any(toolbox_dir.glob(f"*{t.alias}*"))
+        search_name = t.test_path(tests_dir, "*").stem  # find any variant
+        existing_test = any(tests_dir.glob(search_name))
         if not existing_test:
-            test_path = toolbox_dir / f"{t.alias}.default" / t.filename  # defaults all over. meh
+            test_path = t.test_path(tests_dir)
             test_path.parent.mkdir(exist_ok=True, parents=True)
             test_path.write_text(t.terrible_ini())
+            (test_path.parent / "inputs").mkdir(exist_ok=True)
             count += 1
     return count
 
@@ -374,6 +379,7 @@ def main():
     # automatic creation of test configs
     # count_created = create_new_tests()
     # print(f"created {count_created} new tests")
+    # return
 
     # SUBCOMMAND 2 - run single test -- for running single in subprocess
     if len(sys.argv) == 2:
