@@ -1,14 +1,20 @@
 import configparser
 import logging
 import shutil
+import sys
+import time
 from dataclasses import dataclass, field, replace
 from datetime import datetime as dt  # broken for no reason
+from datetime import timedelta
 from itertools import chain
 from pathlib import Path
-from pprint import pprint
-import sys
 from tempfile import TemporaryDirectory
 from typing import Any, Generator, Union
+
+import arcpy
+
+PSEUDO_ISO_FMT = "%Y-%m-%d %H:%M:%S"
+EXTRA_PSEUDO_ISO_FMT = "%Y%m%d%H%M%S"
 
 # save these for logger before kibana (from toolbox import) clobbers things
 real_stdout = sys.stdout
@@ -17,24 +23,26 @@ real_stderr = sys.stderr
 
 def setup_test_logger(test_path: Path) -> logging.Logger:
     logger = logging.getLogger(test_path.stem)
-    logger.propagate = False
+    # logger.propagate = False
     logger.setLevel(logging.DEBUG)
+
+    formatter = logging.Formatter("%(asctime)s:%(levelname)5s: %(message)s", datefmt=PSEUDO_ISO_FMT)
 
     log_dir = test_path.parent / "logs"
     log_dir.mkdir(exist_ok=True)
-    logname = f"{logger.name}_{dt.now():%Y%m%d%H%M%S}.log"
+    logname = f"{logger.name}_{dt.now():{EXTRA_PSEUDO_ISO_FMT}}.log"
     fh = logging.FileHandler(str(log_dir / logname), mode="w", encoding="utf-8")
+    fh.setFormatter(formatter)
     fh.setLevel(logging.DEBUG)
     logger.addHandler(fh)
 
     sh = logging.StreamHandler(stream=real_stdout)  # anti-kibana measure
+    sh.setFormatter(formatter)
     sh.setLevel(logging.INFO)
     logger.addHandler(sh)
 
     return logger
 
-
-import arcpy
 
 # toolbox_path: str = (
 #     r"I:\test\ArcGISPro_VersionTesting\toolboxes\NV5_Tools_v0.3.0\nv5_toolbox_v0.3.0.atbx"
@@ -95,7 +103,7 @@ class Test:
         outputs_content = "\n".join(self.outputs)  # this is a bit weird ini format
 
         now = dt.now()
-        content = f'''; generated {now:%Y-%m-%d %H:%M:%S}
+        content = f'''; generated {now:{PSEUDO_ISO_FMT}}
 [test]
 ; full path to toolbox (atbx/tbx) being tested.
 toolbox = {self.toolbox}
@@ -110,6 +118,7 @@ description = {self.description}
 
 [outputs]
 ; list expected output files one per line.
+; these are what will be compared between ArcPro 3.1 and ArcPro 3.6.
 {outputs_content}
 '''
         return content
@@ -222,7 +231,7 @@ class OutputCapture:
         arcpy.AddError = OutputCapture._orig_error
 
     def __call__(self, message: str, *args: Any, **kwds: Any) -> Any:
-        self.logger.debug(message)
+        self.logger.debug(message.strip("\n"))  # densify
 
 
 def main():
@@ -240,41 +249,49 @@ def main():
             inputs = test_path.parent / "inputs"
             outputs = test_path.parent / f"outputs_{test_path.stem}"  # TODO: not sure about this
 
-            logger.info(f"Test: {test_path.stem}")
-            logger.info(f"Toolbox: {test.toolbox}")
-            logger.info(f"Alias: {test.alias}")
+            logger.info(f"Test:        {test_path.stem}")
+            logger.info(f"Toolbox:     {test.toolbox}")
+            logger.info(f"Alias:       {test.alias}")
             logger.info(f"Description: {test.description}")
-            logger.debug(f"{inputs=}")
-            logger.debug(f"{outputs=}")
+            logger.debug(f"{inputs=!s}")
+            logger.debug(f"{outputs=!s}")
 
             if len(list(inputs.glob("*"))) == 0:
                 logger.error(f"FAIL: {test_path.stem}. No inputs.")
                 continue
 
-            with TemporaryDirectory(dir=test_path.parent, prefix="inputs_") as temp_inputs:
+            # running the inputs from network drive is slooooow
+            with TemporaryDirectory(prefix="inputs_") as temp_inputs:
                 # copy inputs to temp
                 temp_inputs = Path(temp_inputs)
-                logger.debug(f"{temp_inputs=}")
+                logger.debug(f"{temp_inputs=!s}")
                 shutil.copytree(str(inputs), str(temp_inputs), dirs_exist_ok=True)
                 logger.info("copying inputs to temp directory")
                 final_params = test.resolve_inputs(temp_inputs)  # inputs_dirname=inputs.stem
                 transfers = test.resolve_outputs(temp_inputs, outputs)
-                logger.debug(final_params)
-                logger.debug(transfers)
+                logger.debug(parameter_dict(final_params))
+                logger.debug([(str(src), str(dst)) for src, dst in transfers])
+
                 # run on temp inputs
                 try:
+                    start = time.perf_counter()
                     logger.info("running...")
+                    logger.debug("\n--- start tool output ---")
                     run(test.toolbox, test.alias, parameter_dict(final_params))
+                    logger.debug("\n---  end tool output  ---")
+                    took = time.perf_counter() - start
+                    logger.info(f"took {timedelta(seconds=took)}")
                 except Exception as e:
                     logger.error(f"FAIL: {test_path.stem}. Exception: {e}")
                     continue
+
                 # copy outputs
                 logger.info("copying expected outputs to output directory")
                 shutil.rmtree(outputs, ignore_errors=True)
                 outputs.mkdir(exist_ok=True)
-                for src, dst in transfers:
-                    logger.debug(src)
-                    logger.debug(dst)
+                for i, (src, dst) in enumerate(transfers):
+                    logger.debug(f"{i} {src=!s}")
+                    logger.debug(f"{i} {dst=!s}")
                     if src.is_file():
                         shutil.copyfile(str(src), str(dst))
                     elif src.is_dir():
