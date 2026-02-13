@@ -1,12 +1,38 @@
 import configparser
+import logging
 import shutil
 from dataclasses import dataclass, field, replace
 from datetime import datetime as dt  # broken for no reason
 from itertools import chain
 from pathlib import Path
 from pprint import pprint
+import sys
 from tempfile import TemporaryDirectory
-from typing import Any, Union
+from typing import Any, Generator, Union
+
+# save these for logger before kibana (from toolbox import) clobbers things
+real_stdout = sys.stdout
+real_stderr = sys.stderr
+
+
+def setup_test_logger(test_path: Path) -> logging.Logger:
+    logger = logging.getLogger(test_path.stem)
+    logger.propagate = False
+    logger.setLevel(logging.DEBUG)
+
+    log_dir = test_path.parent / "logs"
+    log_dir.mkdir(exist_ok=True)
+    logname = f"{logger.name}_{dt.now():%Y%m%d%H%M%S}.log"
+    fh = logging.FileHandler(str(log_dir / logname), mode="w", encoding="utf-8")
+    fh.setLevel(logging.DEBUG)
+    logger.addHandler(fh)
+
+    sh = logging.StreamHandler(stream=real_stdout)  # anti-kibana measure
+    sh.setLevel(logging.INFO)
+    logger.addHandler(sh)
+
+    return logger
+
 
 import arcpy
 
@@ -94,7 +120,7 @@ description = {self.description}
         resolved: list[Parameter] = []
         for p in self.parameters:
             path_parts = Path(p.value).parts  # is there a better way?
-            if path_parts and path_parts[0] == inputs_dirname:  # meh hardcoded
+            if path_parts and path_parts[0] == inputs_dirname:
                 value = input_dir.joinpath(*path_parts[1:])
                 target = str(input_dir.parent / value)
                 resolved.append(replace(p, value=target))
@@ -154,11 +180,11 @@ def parse_test_ini(contents: str) -> Test:
     # arcpy.AddMessage(str(d))
 
 
-def find_tests(root: Union[str, Path]) -> list[tuple[Path, Test]]:
+def find_tests(root: Union[str, Path]) -> Generator[tuple[Path, Test], None, None]:
     root = Path(root)
     test_configs = root.glob("**/test*.ini")
-    tests = [(c.absolute(), parse_test_ini(c.read_text())) for c in test_configs]
-    return tests
+    tests = ((c.absolute(), parse_test_ini(c.read_text())) for c in test_configs)
+    yield from tests
 
 
 def find_toolboxes(root: Union[str, Path]) -> list[Test]:
@@ -176,6 +202,29 @@ def run(toolbox_path: str, tool_alias: str, params: dict[str, Any]):
     tool(**params)
 
 
+class OutputCapture:
+    _orig_message = arcpy.AddMessage  # real arcpy funcs?
+    _orig_warning = arcpy.AddWarning
+    _orig_error = arcpy.AddError
+
+    def __init__(self, logger: logging.Logger) -> None:
+        self.logger = logger
+
+    def __enter__(self) -> logging.Logger:
+        arcpy.AddMessage = self
+        arcpy.AddWarning = self
+        arcpy.AddError = self
+        return self.logger
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        arcpy.AddMessage = OutputCapture._orig_message
+        arcpy.AddWarning = OutputCapture._orig_warning
+        arcpy.AddError = OutputCapture._orig_error
+
+    def __call__(self, message: str, *args: Any, **kwds: Any) -> Any:
+        self.logger.debug(message)
+
+
 def main():
     # automatic creation of test configs
     # tests = find_toolboxes(r"I:\test\ArcGISPro_VersionTesting\toolboxes")
@@ -186,30 +235,54 @@ def main():
 
     # running all tests found
     for test_path, test in find_tests(r"I:\test\ArcGISPro_VersionTesting\tests"):
-        inputs = test_path.parent / "inputs"
-        outputs = test_path.parent / f"outputs_{test_path.stem}"  # TODO: not sure about this
+        logger = setup_test_logger(test_path)
+        with OutputCapture(logger):
+            inputs = test_path.parent / "inputs"
+            outputs = test_path.parent / f"outputs_{test_path.stem}"  # TODO: not sure about this
 
-        with TemporaryDirectory(dir=test_path.parent, prefix="inputs_") as temp_inputs:
-            # copy inputs to temp
-            temp_inputs = Path(temp_inputs)
-            shutil.copytree(str(inputs), str(temp_inputs), dirs_exist_ok=True)
-            final_params = test.resolve_inputs(temp_inputs)  # inputs_dirname=inputs.stem
-            transfers = test.resolve_outputs(temp_inputs, outputs)
-            pprint(final_params)
-            pprint(transfers)
-            # run on temp inputs
-            run(test.toolbox, test.alias, parameter_dict(final_params))
-            # copy outputs
-            shutil.rmtree(outputs, ignore_errors=True)
-            outputs.mkdir(exist_ok=True)
-            for src, dst in transfers:
-                print(src, dst)
-                if src.is_file():
-                    shutil.copyfile(str(src), str(dst))
-                elif src.is_dir():
-                    shutil.copytree(str(src), str(dst))
-                else:
-                    raise Exception("BAD")
+            logger.info(f"Test: {test_path.stem}")
+            logger.info(f"Toolbox: {test.toolbox}")
+            logger.info(f"Alias: {test.alias}")
+            logger.info(f"Description: {test.description}")
+            logger.debug(f"{inputs=}")
+            logger.debug(f"{outputs=}")
+
+            if len(list(inputs.glob("*"))) == 0:
+                logger.error(f"FAIL: {test_path.stem}. No inputs.")
+                continue
+
+            with TemporaryDirectory(dir=test_path.parent, prefix="inputs_") as temp_inputs:
+                # copy inputs to temp
+                temp_inputs = Path(temp_inputs)
+                logger.debug(f"{temp_inputs=}")
+                shutil.copytree(str(inputs), str(temp_inputs), dirs_exist_ok=True)
+                logger.info("copying inputs to temp directory")
+                final_params = test.resolve_inputs(temp_inputs)  # inputs_dirname=inputs.stem
+                transfers = test.resolve_outputs(temp_inputs, outputs)
+                logger.debug(final_params)
+                logger.debug(transfers)
+                # run on temp inputs
+                try:
+                    logger.info("running...")
+                    run(test.toolbox, test.alias, parameter_dict(final_params))
+                except Exception as e:
+                    logger.error(f"FAIL: {test_path.stem}. Exception: {e}")
+                    continue
+                # copy outputs
+                logger.info("copying expected outputs to output directory")
+                shutil.rmtree(outputs, ignore_errors=True)
+                outputs.mkdir(exist_ok=True)
+                for src, dst in transfers:
+                    logger.debug(src)
+                    logger.debug(dst)
+                    if src.is_file():
+                        shutil.copyfile(str(src), str(dst))
+                    elif src.is_dir():
+                        shutil.copytree(str(src), str(dst))
+                    else:
+                        raise Exception("BAD")
+
+            logger.info("test finished\n")
 
 
 if __name__ == "__main__":
