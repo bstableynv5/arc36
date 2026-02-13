@@ -176,6 +176,7 @@ def make_tests(toolbox_path: Union[str, Path]) -> list[Test]:
 
 def parse_test_ini(contents: str) -> Test:
     parser = configparser.ConfigParser(allow_no_value=True)
+    parser.optionxform = str  # preserve case of ini keys. default converts to lower...
     parser.read_string(contents)
     return Test(
         toolbox=parser["test"]["toolbox"],
@@ -209,6 +210,8 @@ def run(toolbox_path: str, tool_alias: str, params: dict[str, Any]):
     toolbox = arcpy.ImportToolbox(toolbox_path)
     tool = getattr(toolbox, tool_alias)
     tool(**params)
+    del tool
+    del toolbox
 
 
 class OutputCapture:
@@ -261,7 +264,9 @@ def main():
                 continue
 
             # running the inputs from network drive is slooooow
-            with TemporaryDirectory(prefix="inputs_") as temp_inputs:
+            # TODO: test config for things that must run on I: (condor)
+            # TODO: something weird happening with tempdir deletion. gdb stays opened by some process.
+            with TemporaryDirectory(dir=test_path.parent, prefix="inputs_") as temp_inputs:
                 # copy inputs to temp
                 temp_inputs = Path(temp_inputs)
                 logger.debug(f"{temp_inputs=!s}")
@@ -286,18 +291,25 @@ def main():
                     continue
 
                 # copy outputs
-                logger.info("copying expected outputs to output directory")
                 shutil.rmtree(outputs, ignore_errors=True)
-                outputs.mkdir(exist_ok=True)
-                for i, (src, dst) in enumerate(transfers):
-                    logger.debug(f"{i} {src=!s}")
-                    logger.debug(f"{i} {dst=!s}")
-                    if src.is_file():
-                        shutil.copyfile(str(src), str(dst))
-                    elif src.is_dir():
-                        shutil.copytree(str(src), str(dst))
-                    else:
-                        raise Exception("BAD")
+                if transfers:
+                    logger.info("copying expected outputs to output directory")
+                    outputs.mkdir(exist_ok=True)
+                    for i, (src, dst) in enumerate(transfers):
+                        logger.debug(f"{i} {src=!s}")
+                        logger.debug(f"{i} {dst=!s}")
+                        if src.is_file():
+                            shutil.copyfile(str(src), str(dst))
+                        elif src.is_dir():
+                            shutil.copytree(str(src), str(dst))
+                        else:
+                            logger.critical("BAD")
+                            raise Exception("BAD")
+                else:
+                    logger.info("saving no outputs")
+
+                time.sleep(5)
+                logger.info("exit tempdir")
 
             logger.info("test finished\n")
 
