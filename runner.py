@@ -2,16 +2,18 @@ import configparser
 import logging
 import re
 import shutil
+import sqlite3
 import subprocess
 import sys
 import time
+from contextlib import closing
 from dataclasses import dataclass, field, replace
 from datetime import datetime as dt  # broken for no reason
 from datetime import timedelta
 from itertools import chain
 from pathlib import Path
 from tempfile import gettempdir
-from typing import Any, Generator, Literal, Union
+from typing import Any, Generator, Literal, Optional, Union
 
 import arcpy
 
@@ -48,25 +50,6 @@ def setup_logger(name: str, log_file: Union[Path, str]) -> logging.Logger:
     logger.addHandler(sh)
 
     return logger
-
-
-# toolbox_path: str = (
-#     r"I:\test\ArcGISPro_VersionTesting\toolboxes\NV5_Tools_v0.3.0\nv5_toolbox_v0.3.0.atbx"
-# )
-#
-# toolname: str = "AOILandCover"
-#
-# params: dict[str, Any] = {
-#     "input_fc": r"I:\test\ben\landcover\duke_giant\merged_spans.shp",
-#     "output_fc": r"I:\test\ben\landcover\duke_giant\merged_spans_landcover.shp",
-#     "landcover_raster": "CONUS",
-#     "output_classes": "3 class - urban, mixed, rural",
-#     "buffer_distance": 152,
-#     "dissolve_all": True,
-#     "group_field": None,
-# }
-#
-# test_config = f"test.{tool_alias}.ini"
 
 
 @dataclass(frozen=True)
@@ -203,11 +186,11 @@ def parse_test_ini(contents: str) -> Test:
     # arcpy.AddMessage(str(d))
 
 
-def find_tests(root: Union[str, Path]) -> Generator[tuple[Path, Test], None, None]:
+def find_tests(root: Union[str, Path]) -> list[tuple[Path, Test]]:
     root = Path(root)
     test_configs = root.glob("**/test*.ini")
-    tests = ((c.absolute(), parse_test_ini(c.read_text())) for c in test_configs)
-    yield from tests
+    tests = [(c.absolute(), parse_test_ini(c.read_text())) for c in test_configs]
+    return tests
 
 
 def find_toolboxes(root: Union[str, Path]) -> list[Test]:
@@ -223,22 +206,11 @@ def run(toolbox_path: str, tool_alias: str, params: dict[str, Any]):
     toolbox = arcpy.ImportToolbox(toolbox_path)
     tool = getattr(toolbox, tool_alias)
     tool(**params)
-    # del tool # no effect against locked gdbs
-    # del toolbox
-
-
-def delete_temp_inputs_cause_arcpy_is_stupid(inputs: Path):
-    # arcpy can't even delete its own crap!
-    for file in inputs.iterdir():
-        print(file)
-        # compacting supposedly clears locks, but didnt work
-        # if file.suffix.lower() == ".gdb":
-        #     print("compacting")
-        #     arcpy.Compact_management(str(file))
-        arcpy.Delete_management(str(file.absolute()))
 
 
 class OutputCapture:
+    """Capture arcpy tool output to a logger."""
+
     _orig_message = arcpy.AddMessage  # real arcpy funcs?
     _orig_warning = arcpy.AddWarning
     _orig_error = arcpy.AddError
@@ -261,87 +233,132 @@ class OutputCapture:
         self.logger.debug(message.strip("\n"))  # densify
 
 
+class TestFailException(Exception):
+    """when a toolbox test fails"""
+
+
 def run_single_test(test_path: Path, run_id: int, env: Literal["baseline", "target"]):
-    # need run id, env
-    test = parse_test_ini(test_path.read_text())
-    # print("PARSED TEST")
-    test_id = test_path.stem
-    logger = setup_logger(test_id, test_path.parent / "logs" / f"{run_id:03d}_{env}_{test_id}.log")
-
-    temp_inputs_parent = Path(gettempdir()) if test.run_local else test_path.parent
-
-    inputs = test_path.parent / "inputs"
-    temp_inputs = temp_inputs_parent / f"inputs_{env}_{test_id}"
-    outputs = test_path.parent / f"outputs_{env}_{test_id}"  # TODO: not sure about this
-
-    logger.debug(f"{run_id=}")
-    logger.debug(f"{env=}")
-    logger.info(f"Test:        {test_id}")
-    logger.info(f"Toolbox:     {test.toolbox}")
-    logger.info(f"Alias:       {test.alias}")
-    logger.info(f"Description: {test.description}")
-    logger.info(f"Run Local:   {test.run_local}")
-    logger.debug(f"{inputs=!s}")
-    logger.debug(f"{temp_inputs=!s}")
-    logger.debug(f"{outputs=!s}")
-
-    if len(list(inputs.glob("*"))) == 0:
-        logger.error(f"FAIL: {test_id}. No inputs.")
-        return
-
-    # running the inputs from network drive is slooooow
-    # TODO: something weird happening with tempdir deletion. gdb stays opened by some process.
-    # blast2dem creates a feature layer...
-
-    # temp_inputs = TemporaryDirectory(dir=temp_dir_parent, prefix=f"inputs_{env}_").name
-    # with TemporaryDirectory(dir=temp_dir_parent, prefix="inputs_") as temp_inputs:
-    # temp_inputs = Path(temp_inputs)
-
-    # copy inputs to temp
-    logger.info("copying inputs to temp directory")
-    temp_inputs.mkdir(exist_ok=True)
-    shutil.copytree(str(inputs), str(temp_inputs), dirs_exist_ok=True)
-
-    # run on temp inputs
     try:
-        final_params = test.resolve_inputs(temp_inputs)  # inputs_dirname=inputs.stem
-        logger.debug(parameter_dict(final_params))
-        start = time.perf_counter()
-        logger.info("running...")
-        logger.debug("\n--- start tool output ---")
-        with OutputCapture(logger):
-            run(test.toolbox, test.alias, parameter_dict(final_params))
-        logger.debug("\n---  end tool output  ---")
-        took = time.perf_counter() - start
-        logger.info(f"took {timedelta(seconds=took)}")
-    except Exception as e:
-        logger.error(f"FAIL: {test_id}. Exception: {e}")
-        return
+        test_id = test_path.stem
+        post_results(
+            r"I:\test\ArcGISPro_VersionTesting\results.sqlite",
+            run_id,
+            env,
+            test_id,
+            status="running",
+        )
+        # TODO: mechanism for capturing result, etc. direct sql write?
 
-    # copy outputs
-    transfers = test.resolve_outputs(temp_inputs, outputs)
-    logger.debug([(str(src), str(dst)) for src, dst in transfers])
-    shutil.rmtree(outputs, ignore_errors=True)
-    if transfers:
-        logger.info("copying expected outputs to output directory")
-        outputs.mkdir(exist_ok=True)
-        for i, (src, dst) in enumerate(transfers):
-            logger.debug(f"{i} {src=!s}")
-            logger.debug(f"{i} {dst=!s}")
-            if src.is_file():
-                shutil.copyfile(str(src), str(dst))
-            elif src.is_dir():
-                shutil.copytree(str(src), str(dst))
-            else:
-                logger.critical("BAD")
-                raise Exception("BAD")
-    else:
-        logger.info("saving no outputs")
+        # need run id, env
+        test = parse_test_ini(test_path.read_text())
+        # print("PARSED TEST")
+        logger = setup_logger(
+            test_id, test_path.parent / "logs" / f"{run_id:03d}_{env}_{test_id}.log"
+        )
 
-    # delete_temp_inputs_cause_arcpy_is_stupid(temp_inputs)
-    # logger.info("exit tempdir")
+        temp_inputs_parent = Path(gettempdir()) if test.run_local else test_path.parent
 
-    logger.info("test finished\n")
+        inputs = test_path.parent / "inputs"
+        temp_inputs = temp_inputs_parent / f"inputs_{env}_{test_id}"
+        outputs = test_path.parent / f"outputs_{env}_{test_id}"  # TODO: not sure about this
+
+        logger.debug(f"{run_id=}")
+        logger.debug(f"{env=}")
+        logger.info(f"Test:        {test_id}")
+        logger.info(f"Toolbox:     {test.toolbox}")
+        logger.info(f"Alias:       {test.alias}")
+        logger.info(f"Description: {test.description}")
+        logger.info(f"Run Local:   {test.run_local}")
+        logger.debug(f"{inputs=!s}")
+        logger.debug(f"{temp_inputs=!s}")
+        logger.debug(f"{outputs=!s}")
+
+        if len(list(inputs.glob("*"))) == 0:
+            raise TestFailException("No inputs.")
+
+        # copy inputs to temp
+        logger.info("copying inputs to temp directory")
+        temp_inputs.mkdir(exist_ok=True)
+        shutil.copytree(str(inputs), str(temp_inputs), dirs_exist_ok=True)
+
+        # run on temp inputs
+        try:
+            final_params = test.resolve_inputs(temp_inputs)  # inputs_dirname=inputs.stem
+            logger.debug(parameter_dict(final_params))
+            start = time.perf_counter()
+            logger.info("running...")
+            logger.debug("\n--- start tool output ---")
+            with OutputCapture(logger):
+                run(test.toolbox, test.alias, parameter_dict(final_params))
+            logger.debug("\n---  end tool output  ---")
+            took = time.perf_counter() - start
+            logger.info(f"took {timedelta(seconds=took)}")
+        except Exception as e:
+            raise TestFailException(f"Exception: {e}")
+
+        # copy outputs
+        transfers = test.resolve_outputs(temp_inputs, outputs)
+        logger.debug([(str(src), str(dst)) for src, dst in transfers])
+        shutil.rmtree(outputs, ignore_errors=True)
+        if transfers:
+            logger.info("copying expected outputs to output directory")
+            outputs.mkdir(exist_ok=True)
+            for i, (src, dst) in enumerate(transfers):
+                logger.debug(f"{i} {src=!s}")
+                logger.debug(f"{i} {dst=!s}")
+                if src.is_file():
+                    shutil.copyfile(str(src), str(dst))
+                elif src.is_dir():
+                    shutil.copytree(str(src), str(dst))
+                else:
+                    logger.critical("BAD")
+                    raise Exception("BAD")
+        else:
+            logger.info("saving no outputs")
+
+        post_results(
+            r"I:\test\ArcGISPro_VersionTesting\results.sqlite",
+            run_id,
+            env,
+            test_id,
+            status="complete",
+            run_result="PASS",
+        )
+        logger.info("test finished\n")
+
+    except TestFailException as e:
+        logger.error(f"FAIL: {e}\n")
+        post_results(
+            r"I:\test\ArcGISPro_VersionTesting\results.sqlite",
+            run_id,
+            env,
+            test_id,
+            status="complete",
+            run_result="FAIL",
+        )
+
+
+def post_results(
+    db_conn_string: str,
+    run_id: int,
+    env: str,
+    test_id: str,
+    status: str,
+    run_result: Optional[str] = None,
+    compare_result: Optional[str] = None,
+):
+    statement = (
+        "INSERT INTO test_instances (run_id, env, id, status, run_result, compare_result) "
+        "VALUES (?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT DO UPDATE SET "
+        "status=excluded.status, "
+        "run_result=excluded.run_result, "
+        "compare_result=excluded.compare_result"
+    )
+    with closing(sqlite3.connect(db_conn_string)) as conn:
+        with conn:
+            conn.execute(statement, (run_id, env, test_id, status, run_result, compare_result))
+            conn.commit()
 
 
 @dataclass(frozen=True)
@@ -402,7 +419,7 @@ def main():
         logger.debug(f"{env_python=}")
         logger.debug(f"{tests_dir=}")
 
-        tests = list(find_tests(tests_dir))
+        tests = find_tests(tests_dir)
         logger.info(f"found {len(tests)} tests to run")
         for i, (test_path, test) in enumerate(tests):
             logger.debug(f"{i} RUN {test_path.relative_to(tests_dir)}")
