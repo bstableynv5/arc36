@@ -79,10 +79,16 @@ class Test:
     outputs: list[str] = field(default_factory=list)
     """output files from script to be kept and compared"""
 
-    def test_path(self, tests_dir: Path, variant: str = "default") -> Path:
+    def normalize_toolbox_name(self) -> str:
         toolbox_name = Path(self.toolbox).stem.lower()
+        toolbox_name = re.sub(r"v?\d(\.\d){1,2}", r"", toolbox_name)  # v0.0.0
         toolbox_name = re.sub(r"\W", r"_", toolbox_name)  # \W = [^a-zA-Z0-9_]
-        test_id = ".".join(["test", toolbox_name, self.alias, variant])
+        toolbox_name = toolbox_name.strip(" _")
+        return toolbox_name
+
+    def test_path(self, tests_dir: Path, variant: str = "default") -> Path:
+        toolbox_name = self.normalize_toolbox_name()
+        test_id = ".".join([toolbox_name, self.alias, variant])
         return tests_dir / test_id / f"{test_id}.ini"
 
     def terrible_ini(self) -> str:
@@ -188,7 +194,7 @@ def parse_test_ini(contents: str) -> Test:
 
 def find_tests(root: Union[str, Path]) -> list[tuple[Path, Test]]:
     root = Path(root)
-    test_configs = root.glob("**/test*.ini")
+    test_configs = root.glob("*/*.ini")
     tests = [(c.absolute(), parse_test_ini(c.read_text())) for c in test_configs]
     return tests
 
