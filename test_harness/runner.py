@@ -1,12 +1,7 @@
-import configparser
-import logging
-import re
 import shutil
-import sqlite3
 import subprocess
 import sys
 import time
-from contextlib import closing
 from dataclasses import dataclass, field, replace
 from datetime import datetime as dt  # broken for no reason
 from datetime import timedelta
@@ -16,180 +11,9 @@ from tempfile import gettempdir
 from typing import Any, Generator, Literal, Optional, Union
 
 import arcpy
-
-PSEUDO_ISO_FMT = "%Y-%m-%d %H:%M:%S"
-EXTRA_PSEUDO_ISO_FMT = "%Y%m%d%H%M%S"
-
-# save these for logger before kibana (from toolbox import) clobbers things
-real_stdout = sys.stdout
-real_stderr = sys.stderr
-
-# {run_id:03d}_env.log run
-# {run_id:03d}_{env}_{logger.name}.log test
-
-
-def setup_logger(name: str, log_file: Union[Path, str]) -> logging.Logger:
-    log_file = Path(log_file)
-
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
-
-    formatter = logging.Formatter("%(asctime)s:%(levelname)5s: %(message)s", datefmt=PSEUDO_ISO_FMT)
-
-    log_file.parent.mkdir(exist_ok=True, parents=True)
-    datetag = f"_{dt.now():{EXTRA_PSEUDO_ISO_FMT}}"
-    log_file = log_file.with_stem(log_file.stem + datetag)
-    fh = logging.FileHandler(str(log_file), mode="w", encoding="utf-8")
-    fh.setFormatter(formatter)
-    fh.setLevel(logging.DEBUG)
-    logger.addHandler(fh)
-
-    sh = logging.StreamHandler(stream=real_stdout)  # anti-kibana measure
-    sh.setFormatter(formatter)
-    sh.setLevel(logging.INFO)
-    logger.addHandler(sh)
-
-    return logger
-
-
-@dataclass(frozen=True)
-class Parameter:
-    name: str
-    """name in code"""
-    value: str
-    """default value from arcpy, or entered value from a test config"""
-    display_name: str = ""
-    """name in arc gui"""
-    datatype: str = ""
-    """pretty arc type ('Feature Class')"""
-
-
-@dataclass(frozen=True)
-class Test:
-    toolbox: str
-    """absolute path to atbx/tbx"""
-    alias: str
-    """tool name/alias, not display name"""
-    description: str = ""
-    """SHORT description of test"""
-    run_local: bool = True
-    """copy inputs to C: if True. set False to keep inputs on I: (ie condor)"""
-    parameters: list[Parameter] = field(default_factory=list)
-    """extracted parameter info"""
-    outputs: list[str] = field(default_factory=list)
-    """output files from script to be kept and compared"""
-
-    def normalize_toolbox_name(self) -> str:
-        toolbox_name = Path(self.toolbox).stem.lower()
-        toolbox_name = re.sub(r"v?\d(\.\d){1,2}", r"", toolbox_name)  # v0.0.0
-        toolbox_name = re.sub(r"\W", r"_", toolbox_name)  # \W = [^a-zA-Z0-9_]
-        toolbox_name = toolbox_name.strip(" _")
-        return toolbox_name
-
-    def test_path(self, tests_dir: Path, variant: str = "default") -> Path:
-        toolbox_name = self.normalize_toolbox_name()
-        test_id = ".".join([toolbox_name, self.alias, variant])
-        return tests_dir / test_id / f"{test_id}.ini"
-
-    def terrible_ini(self) -> str:
-
-        parameter_lines = []
-        for p in self.parameters:
-            parameter_lines.append(f'; display name: {p.display_name} | type: {p.datatype}')
-            parameter_lines.append(f'{p.name} = {p.value}')
-        parameter_content = "\n".join(parameter_lines)
-
-        outputs_content = "\n".join(self.outputs)  # this is a bit weird ini format
-
-        now = dt.now()
-        content = f'''; generated {now:{PSEUDO_ISO_FMT}}
-[test]
-; full path to toolbox (atbx/tbx) being tested.
-toolbox = {self.toolbox}
-; alias (tool's internal name) of tool being tested.
-alias = {self.alias}
-; SHORT description of test. letters, numbers, and spaces only.
-description = {self.description}
-; inputs will copy to machine C: before run. set false if inputs must stay on I: (ie condor)
-run_local = {str(self.run_local).lower()}
-
-[parameters]
-; tool input parameters.
-{parameter_content}
-
-[outputs]
-; list expected output files one per line.
-; these are what will be compared between ArcPro 3.1 and ArcPro 3.6.
-{outputs_content}
-'''
-        return content
-
-    def resolve_inputs(self, input_dir: Path, inputs_dirname: str = "inputs") -> list[Parameter]:
-        """stick together the relative parameter inputs with input_dir"""
-        # TODO: improve this function?
-        resolved: list[Parameter] = []
-        for p in self.parameters:
-            path_parts = Path(p.value).parts  # is there a better way?
-            if path_parts and path_parts[0] == inputs_dirname:
-                value = input_dir.joinpath(*path_parts[1:])
-                target = str(input_dir.parent / value)
-                resolved.append(replace(p, value=target))
-            else:
-                resolved.append(p)
-
-        return resolved
-
-    def resolve_outputs(self, input_dir: Path, output_dir: Path) -> list[tuple[Path, Path]]:
-        return [(input_dir / src, output_dir / src) for src in self.outputs]
-
-
-def parameter_dict(params: list[Parameter]) -> dict[str, Any]:
-    return {p.name: p.value for p in params}
-
-
-def get_parameters(toolbox_path: Union[str, Path], tool_alias: str) -> list[Parameter]:
-    """arcpy"""
-    param_info = arcpy.GetParameterInfo(str(Path(toolbox_path, tool_alias)))
-    return [
-        Parameter(
-            name=pi.name,
-            value=pi.valueAsText if pi.value is not None else "",
-            display_name=pi.displayName,
-            datatype=pi.datatype,
-        )
-        for pi in param_info
-    ]
-
-
-def make_tests(toolbox_path: Union[str, Path]) -> list[Test]:
-    """arcpy"""
-    # https://pro.arcgis.com/en/pro-app/latest/arcpy/functions/importtoolbox.htm
-    toolbox = arcpy.ImportToolbox(str(toolbox_path))
-    return [
-        Test(
-            toolbox=str(toolbox_path),
-            alias=alias,
-            parameters=get_parameters(toolbox_path, alias),
-        )
-        for alias in toolbox.__all__
-    ]
-
-
-def parse_test_ini(contents: str) -> Test:
-    parser = configparser.ConfigParser(allow_no_value=True)
-    parser.optionxform = str  # preserve case of ini keys. default converts to lower...
-    parser.read_string(contents)
-    return Test(
-        toolbox=parser["test"]["toolbox"],
-        alias=parser["test"]["alias"],
-        description=parser["test"]["description"],
-        run_local=parser.getboolean("test", "run_local", fallback=True),
-        parameters=[Parameter(name=k, value=v) for k, v in parser["parameters"].items()],
-        outputs=[str(k).strip(" '\"") for k, _ in parser["outputs"].items()],
-    )
-    # d = dict(parser["tool"])
-    # d["parameters"] = dict(parser["parameters"])
-    # arcpy.AddMessage(str(d))
+from db import DB
+from test import Parameter, Test, make_tests, parameter_dict, parse_test_ini
+from test_logging import OutputCapture, setup_logger
 
 
 def find_tests(root: Union[str, Path]) -> list[tuple[Path, Test]]:
@@ -214,53 +38,21 @@ def run(toolbox_path: str, tool_alias: str, params: dict[str, Any]):
     tool(**params)
 
 
-class OutputCapture:
-    """Capture arcpy tool output to a logger."""
-
-    _orig_message = arcpy.AddMessage  # real arcpy funcs?
-    _orig_warning = arcpy.AddWarning
-    _orig_error = arcpy.AddError
-
-    def __init__(self, logger: logging.Logger) -> None:
-        self.logger = logger
-
-    def __enter__(self) -> logging.Logger:
-        arcpy.AddMessage = self
-        arcpy.AddWarning = self
-        arcpy.AddError = self
-        return self.logger
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        arcpy.AddMessage = OutputCapture._orig_message
-        arcpy.AddWarning = OutputCapture._orig_warning
-        arcpy.AddError = OutputCapture._orig_error
-
-    def __call__(self, message: str, *args: Any, **kwds: Any) -> Any:
-        self.logger.debug(message.strip("\n"))  # densify
-
-
 class TestFailException(Exception):
     """when a toolbox test fails"""
 
 
 def run_single_test(test_path: Path, run_id: int, env: Literal["baseline", "target"]):
     try:
+        results = DB(r"I:\test\ArcGISPro_VersionTesting\results.sqlite")
         test_id = test_path.stem
-        post_results(
-            r"I:\test\ArcGISPro_VersionTesting\results.sqlite",
-            run_id,
-            env,
-            test_id,
-            status="running",
-        )
-        # TODO: mechanism for capturing result, etc. direct sql write?
+        results.post_results(run_id, env, test_id, status="running")
 
         # need run id, env
         test = parse_test_ini(test_path.read_text())
         # print("PARSED TEST")
-        logger = setup_logger(
-            test_id, test_path.parent / "logs" / f"{run_id:03d}_{env}_{test_id}.log"
-        )
+        test_logfile = test_path.parent / "logs" / f"{run_id:03d}_{env}_{test_id}.log"
+        logger = setup_logger(test_id, test_logfile)
 
         temp_inputs_parent = Path(gettempdir()) if test.run_local else test_path.parent
 
@@ -322,49 +114,36 @@ def run_single_test(test_path: Path, run_id: int, env: Literal["baseline", "targ
         else:
             logger.info("saving no outputs")
 
-        post_results(
-            r"I:\test\ArcGISPro_VersionTesting\results.sqlite",
-            run_id,
-            env,
-            test_id,
-            status="complete",
-            run_result="PASS",
-        )
+        results.post_results(run_id, env, test_id, status="complete", run_result="PASS")
         logger.info("test finished\n")
 
     except TestFailException as e:
         logger.error(f"FAIL: {e}\n")
-        post_results(
-            r"I:\test\ArcGISPro_VersionTesting\results.sqlite",
-            run_id,
-            env,
-            test_id,
-            status="complete",
-            run_result="FAIL",
-        )
+        results.post_results(run_id, env, test_id, status="complete", run_result="FAIL")
 
 
-def post_results(
-    db_conn_string: str,
-    run_id: int,
-    env: str,
-    test_id: str,
-    status: str,
-    run_result: Optional[str] = None,
-    compare_result: Optional[str] = None,
-):
-    statement = (
-        "INSERT INTO test_instances (run_id, env, id, status, run_result, compare_result) "
-        "VALUES (?, ?, ?, ?, ?, ?) "
-        "ON CONFLICT DO UPDATE SET "
-        "status=excluded.status, "
-        "run_result=excluded.run_result, "
-        "compare_result=excluded.compare_result"
-    )
-    with closing(sqlite3.connect(db_conn_string)) as conn:
-        with conn:
-            conn.execute(statement, (run_id, env, test_id, status, run_result, compare_result))
-            conn.commit()
+def run_all_tests(root: Path, run_id: int, env: str, env_python: str):
+    tests_dir = root / "tests"
+    log_dir = root / "logs"
+    run_logfile = log_dir / f"{run_id:03d}_{env}.log"
+    logger = setup_logger(f"run_{run_id}", run_logfile)
+    logger.info("RUN ALL")
+    logger.debug(f"{env=}")
+    logger.debug(f"{env_python=}")
+    logger.debug(f"{tests_dir=}")
+
+    tests = find_tests(tests_dir)
+    logger.info(f"found {len(tests)} tests to run")
+    for i, (test_path, test) in enumerate(tests):
+        logger.debug(f"{i} RUN {test_path.relative_to(tests_dir)}")
+        subprocess.run([env_python, "runner.py", str(test_path)])
+
+        temp_inputs = f"inputs_{env}_{test_path.stem}"
+        for tempdir in (test_path.parent, Path(gettempdir())):
+            rm = tempdir / temp_inputs
+            logger.debug(f"REMOVE {rm}")
+            shutil.rmtree(str(rm), ignore_errors=True)
+    logger.info("FINISHED ALL")
 
 
 @dataclass(frozen=True)
@@ -415,28 +194,7 @@ def main():
         run_id = 0
         env = "baseline"
         env_python = r"C:\Users\ben.stabley\AppData\Local\ESRI\conda\envs\arcgispro-py3_prod_env_v1.4\python.exe"
-
-        tests_dir = root / "tests"
-        log_dir = root / "logs"
-
-        logger = setup_logger(f"run_{run_id}", log_dir / f"{run_id:03d}_{env}.log")
-        logger.info("RUN ALL")
-        logger.debug(f"{env=}")
-        logger.debug(f"{env_python=}")
-        logger.debug(f"{tests_dir=}")
-
-        tests = find_tests(tests_dir)
-        logger.info(f"found {len(tests)} tests to run")
-        for i, (test_path, test) in enumerate(tests):
-            logger.debug(f"{i} RUN {test_path.relative_to(tests_dir)}")
-            subprocess.run([env_python, "runner.py", str(test_path)])
-
-            temp_inputs = f"inputs_{env}_{test_path.stem}"
-            for tempdir in (test_path.parent, Path(gettempdir())):
-                rm = tempdir / temp_inputs
-                logger.debug(f"REMOVE {rm}")
-                shutil.rmtree(str(rm), ignore_errors=True)
-        logger.info("FINISHED ALL")
+        run_all_tests(root, run_id, env, env_python)
 
     # --- env independent ---
     # SUBCOMMAND 1 - see above
