@@ -382,7 +382,7 @@ class GeneralConfig:
 
 def create_new_tests() -> int:
     tests = find_toolboxes(r"I:\test\ArcGISPro_VersionTesting\toolboxes")
-    tests_dir = Path("tests")  # r"I:\test\ArcGISPro_VersionTesting\tests"
+    tests_dir = Path("arctests")  # r"I:\test\ArcGISPro_VersionTesting\tests"
     tests_dir.mkdir(exist_ok=True)
     count = 0
     for t in tests:
