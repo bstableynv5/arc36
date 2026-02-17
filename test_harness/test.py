@@ -43,9 +43,11 @@ class Test:
         toolbox_name = toolbox_name.strip(" _")
         return toolbox_name
 
+    def test_id(self, variant: str = "default") -> str:
+        return ".".join([self.normalize_toolbox_name(), self.alias.lower(), variant])
+
     def test_path(self, tests_dir: Path, variant: str = "default") -> Path:
-        toolbox_name = self.normalize_toolbox_name()
-        test_id = ".".join([toolbox_name, self.alias, variant])
+        test_id = self.test_id(variant)
         return tests_dir / test_id / f"{test_id}.ini"
 
     def terrible_ini(self) -> str:
