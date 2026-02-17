@@ -1,5 +1,6 @@
 import argparse
 import math
+from pprint import pprint
 import random
 import shutil
 import subprocess
@@ -127,7 +128,9 @@ def run_single_test(test_path: Path, run_id: int, env: Literal["baseline", "targ
         results.post_results(run_id, env, test_id, status="complete", run_result="FAIL")
 
 
-def run_all_tests(root: Path, run_id: int, env: str, env_python: str):
+def run_all_tests(
+    root: Path, run_id: int, env: str, env_python: str, test_ids_to_run: Optional[set[str]] = None
+):
     tests_dir = root / "tests"
     log_dir = root / "logs"
     run_logfile = log_dir / f"{run_id:03d}_{env}.log"
@@ -138,12 +141,27 @@ def run_all_tests(root: Path, run_id: int, env: str, env_python: str):
     logger.debug(f"{tests_dir=}")
 
     tests = find_tests(tests_dir)
+    if test_ids_to_run:
+        tests = [t for t in tests if t[1] in test_ids_to_run]
+
     logger.info(f"found {len(tests)} tests to run")
     for i, (test_path, test_id, test) in enumerate(tests):
         logger.debug(f"{i} RUN {test_path.relative_to(tests_dir)}")
-        subprocess.run([env_python, "runner.py", "run_one", str(test_path), str(run_id), env])
+        subprocess.run(
+            [
+                env_python,
+                "runner.py",
+                "run_one",
+                "--path",
+                str(test_path),
+                "--run_id",
+                str(run_id),
+                "--env",
+                env,
+            ]
+        )
 
-        temp_inputs = f"inputs_{env}_{test_path.stem}"
+        temp_inputs = f"inputs_{env}_{test_id}"
         for tempdir in (test_path.parent, Path(gettempdir())):
             rm = tempdir / temp_inputs
             logger.debug(f"REMOVE {rm}")
@@ -180,7 +198,7 @@ def create_new_tests(toolbox_dir: Path, tests_dir: Path) -> int:
     return count
 
 
-def cmd_create_new_tests(args:argparse.Namespace):
+def cmd_create_new_tests(args: argparse.Namespace):
     print("scanning")
     tb_dir = Path(r"I:\test\ArcGISPro_VersionTesting\toolboxes")
     t_dir = Path("arctests")  # r"I:\test\ArcGISPro_VersionTesting\tests"
@@ -188,34 +206,75 @@ def cmd_create_new_tests(args:argparse.Namespace):
     print(f"created {count_created} new tests")
 
 
-def cmd_run_single_test(args:argparse.Namespace):
+def cmd_run_single_test(args: argparse.Namespace):
     run_single_test(Path(args.path).absolute(), args.run_id, args.env)
 
 
-def cmd_run_all_tests(args:argparse.Namespace):
-    for i in range(4):
-        root = Path(r"I:\test\ArcGISPro_VersionTesting")
-        run_id = i
-        env = "baseline"
-        env_python = r"C:\Users\ben.stabley\AppData\Local\ESRI\conda\envs\arcgispro-py3_prod_env_v1.4\python.exe"
-        run_all_tests(root, run_id, env, env_python)
+def cmd_run_all_tests(args: argparse.Namespace):
+    db = DB(r"I:\test\ArcGISPro_VersionTesting\results.sqlite")
+    to_run = db.waiting_tests("baseline")
+    test_ids_to_run = set(id for _, id in to_run)
+    assert len(set(run_id for run_id, _ in to_run)) == 1
+    print("got", len(to_run), "test ids")
+    root = Path(r"I:\test\ArcGISPro_VersionTesting")
+    run_id = to_run[0][0]
+    env = "baseline"
+    env_python = r"C:\Users\ben.stabley\AppData\Local\ESRI\conda\envs\arcgispro-py3_prod_env_v1.4\python.exe"  # fmt:off
+    run_all_tests(root, run_id, env, env_python, test_ids_to_run)
+
+
+def cmd_enqueue_tests(args: argparse.Namespace):
+    test_ids = [id for _, id, _ in find_tests(r"I:\test\ArcGISPro_VersionTesting\tests")]
+    db = DB(r"I:\test\ArcGISPro_VersionTesting\results.sqlite")
+    db.add_run(test_ids, args.fails)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", help="Subcommands")
 
+    ######
     run_one = subparsers.add_parser("run_one", help="run a single test")
-    run_one.add_argument("path", type=str, help="path to test config ini")
-    run_one.add_argument("run_id", type=int, help="run id number")
-    run_one.add_argument("env", type=str, choices=["baseline", "target"], help="environment name to run")
+    run_one.add_argument(
+        "--path",
+        type=str,
+        help="path to test config ini",
+    )
+    run_one.add_argument(
+        "--run_id",
+        type=int,
+        help="run id number",
+    )
+    run_one.add_argument(
+        "--env",
+        type=str,
+        choices=["baseline", "target"],
+        help="environment name to run",
+    )
     run_one.set_defaults(func=cmd_run_single_test)
 
+    ######
     run_all = subparsers.add_parser("run_all", help="run all tests")
+    run_all.add_argument(
+        "--env",
+        type=str,
+        choices=["baseline", "target"],
+        help="environment name to run",
+    )
     run_all.set_defaults(func=cmd_run_all_tests)
 
-    create_tests = subparsers.add_parser("create", help="scans toolboxes and creates test templates for tools")
-    create_tests.set_defaults(func=cmd_create_new_tests)
+    ######
+    create = subparsers.add_parser("create", help="scans toolboxes and creates test templates")
+    create.set_defaults(func=cmd_create_new_tests)
+
+    ######
+    enqueue = subparsers.add_parser("enqueue", help="add new test runs in waiting status")
+    enqueue.add_argument(
+        "--fails",
+        action="store_true",
+        help="enqueue only tests that have not passed",
+    )
+    enqueue.set_defaults(func=cmd_enqueue_tests)
 
     return parser.parse_args()
 
@@ -240,8 +299,8 @@ def main():
     #     run_single_test(Path(sys.argv[1]), 0, "baseline")
     # SUBCOMMAND 3 - run waiting tests for env -- this will be run periodically via "cron"
     # else:
-        # running all tests found
-        # cmd_run_all_tests()
+    # running all tests found
+    # cmd_run_all_tests()
 
     # --- env independent ---
     # SUBCOMMAND 1 - see above
