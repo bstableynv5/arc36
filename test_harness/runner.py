@@ -1,3 +1,6 @@
+import argparse
+import math
+import random
 import shutil
 import subprocess
 import sys
@@ -16,10 +19,10 @@ from test import Parameter, Test, make_tests, parameter_dict, parse_test_ini
 from test_logging import OutputCapture, setup_logger
 
 
-def find_tests(root: Union[str, Path]) -> list[tuple[Path, Test]]:
+def find_tests(root: Union[str, Path]) -> list[tuple[Path, str, Test]]:
     root = Path(root)
     test_configs = root.glob("*/*.ini")
-    tests = [(c.absolute(), parse_test_ini(c.read_text())) for c in test_configs]
+    tests = [(c.absolute(), c.stem, parse_test_ini(c.read_text())) for c in test_configs]
     return tests
 
 
@@ -86,6 +89,8 @@ def run_single_test(test_path: Path, run_id: int, env: Literal["baseline", "targ
             start = time.perf_counter()
             logger.info("running...")
             logger.debug("\n--- start tool output ---")
+            if random.random() < 0.5:
+                raise TestFailException("random error")
             with OutputCapture(logger):
                 run(test.toolbox, test.alias, parameter_dict(final_params))
             logger.debug("\n---  end tool output  ---")
@@ -134,9 +139,9 @@ def run_all_tests(root: Path, run_id: int, env: str, env_python: str):
 
     tests = find_tests(tests_dir)
     logger.info(f"found {len(tests)} tests to run")
-    for i, (test_path, test) in enumerate(tests):
+    for i, (test_path, test_id, test) in enumerate(tests):
         logger.debug(f"{i} RUN {test_path.relative_to(tests_dir)}")
-        subprocess.run([env_python, "runner.py", str(test_path)])
+        subprocess.run([env_python, "runner.py", "run_one", str(test_path), str(run_id), env])
 
         temp_inputs = f"inputs_{env}_{test_path.stem}"
         for tempdir in (test_path.parent, Path(gettempdir())):
@@ -159,9 +164,8 @@ class GeneralConfig:
     database: str  # sqlite database
 
 
-def create_new_tests() -> int:
-    tests = find_toolboxes(r"I:\test\ArcGISPro_VersionTesting\toolboxes")
-    tests_dir = Path("arctests")  # r"I:\test\ArcGISPro_VersionTesting\tests"
+def create_new_tests(toolbox_dir: Path, tests_dir: Path) -> int:
+    tests = find_toolboxes(toolbox_dir)
     tests_dir.mkdir(exist_ok=True)
     count = 0
     for t in tests:
@@ -176,7 +180,54 @@ def create_new_tests() -> int:
     return count
 
 
+def cmd_create_new_tests(args:argparse.Namespace):
+    print("scanning")
+    tb_dir = Path(r"I:\test\ArcGISPro_VersionTesting\toolboxes")
+    t_dir = Path("arctests")  # r"I:\test\ArcGISPro_VersionTesting\tests"
+    count_created = create_new_tests(tb_dir, t_dir)
+    print(f"created {count_created} new tests")
+
+
+def cmd_run_single_test(args:argparse.Namespace):
+    run_single_test(Path(args.path).absolute(), args.run_id, args.env)
+
+
+def cmd_run_all_tests(args:argparse.Namespace):
+    for i in range(4):
+        root = Path(r"I:\test\ArcGISPro_VersionTesting")
+        run_id = i
+        env = "baseline"
+        env_python = r"C:\Users\ben.stabley\AppData\Local\ESRI\conda\envs\arcgispro-py3_prod_env_v1.4\python.exe"
+        run_all_tests(root, run_id, env, env_python)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(dest="command", help="Subcommands")
+
+    run_one = subparsers.add_parser("run_one", help="run a single test")
+    run_one.add_argument("path", type=str, help="path to test config ini")
+    run_one.add_argument("run_id", type=int, help="run id number")
+    run_one.add_argument("env", type=str, choices=["baseline", "target"], help="environment name to run")
+    run_one.set_defaults(func=cmd_run_single_test)
+
+    run_all = subparsers.add_parser("run_all", help="run all tests")
+    run_all.set_defaults(func=cmd_run_all_tests)
+
+    create_tests = subparsers.add_parser("create", help="scans toolboxes and creates test templates for tools")
+    create_tests.set_defaults(func=cmd_create_new_tests)
+
+    return parser.parse_args()
+
+
 def main():
+
+    args = parse_args()
+
+    if hasattr(args, "func"):
+        args.func(args)
+    else:
+        print("error")
     # SUBCOMMAND 1 - scan toolboxs, create default test no test for the tool exists
     # automatic creation of test configs
     # count_created = create_new_tests()
@@ -184,17 +235,13 @@ def main():
     # return
 
     # SUBCOMMAND 2 - run single test -- for running single in subprocess
-    if len(sys.argv) == 2:
-        # print("SINGLE")
-        run_single_test(Path(sys.argv[1]), 0, "baseline")
+    # if len(sys.argv) == 2:
+    #     # print("SINGLE")
+    #     run_single_test(Path(sys.argv[1]), 0, "baseline")
     # SUBCOMMAND 3 - run waiting tests for env -- this will be run periodically via "cron"
-    else:
+    # else:
         # running all tests found
-        root = Path(r"I:\test\ArcGISPro_VersionTesting")
-        run_id = 0
-        env = "baseline"
-        env_python = r"C:\Users\ben.stabley\AppData\Local\ESRI\conda\envs\arcgispro-py3_prod_env_v1.4\python.exe"
-        run_all_tests(root, run_id, env, env_python)
+        # cmd_run_all_tests()
 
     # --- env independent ---
     # SUBCOMMAND 1 - see above
