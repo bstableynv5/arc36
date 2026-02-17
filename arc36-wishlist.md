@@ -27,6 +27,7 @@ pyfakefs??
 1. dask-geopandas,0.5.0
 1. momepy,0.10.0
 1. tabulate,0.9.0
+1. pytest-cov,7.0.0
 
 ## default
 1. ~~tbb4py,2022.3.0 -- can't solve environment~~
