@@ -141,7 +141,7 @@ def run_all_tests(
     logger.debug(f"{tests_dir=}")
 
     tests = find_tests(tests_dir)
-    if test_ids_to_run:
+    if test_ids_to_run is not None:
         tests = [t for t in tests if t[1] in test_ids_to_run]
 
     logger.info(f"found {len(tests)} tests to run")
@@ -212,21 +212,27 @@ def cmd_run_single_test(args: argparse.Namespace):
 
 def cmd_run_all_tests(args: argparse.Namespace):
     db = DB(r"I:\test\ArcGISPro_VersionTesting\results.sqlite")
-    to_run = db.waiting_tests("baseline")
-    test_ids_to_run = set(id for _, id in to_run)
-    assert len(set(run_id for run_id, _ in to_run)) == 1
-    print("got", len(to_run), "test ids")
+    run_id, test_ids_to_run = db.waiting_tests("baseline")
+    # test_ids_to_run = set(id for _, id in to_run)
+    # assert len(set(run_id for run_id, _ in to_run)) == 1
+    print("got", len(test_ids_to_run), "test ids")
+    if not test_ids_to_run:
+        return
     root = Path(r"I:\test\ArcGISPro_VersionTesting")
-    run_id = to_run[0][0]
-    env = "baseline"
+    # run_id = to_run[0][0]
+    env = "baseline"  # args.env
     env_python = r"C:\Users\ben.stabley\AppData\Local\ESRI\conda\envs\arcgispro-py3_prod_env_v1.4\python.exe"  # fmt:off
     run_all_tests(root, run_id, env, env_python, test_ids_to_run)
 
 
 def cmd_enqueue_tests(args: argparse.Namespace):
     test_ids = [id for _, id, _ in find_tests(r"I:\test\ArcGISPro_VersionTesting\tests")]
+    print("found", len(test_ids), "tests")
+    print("start=", args.start)  # start is assumed to be LOCAL time
     db = DB(r"I:\test\ArcGISPro_VersionTesting\results.sqlite")
-    db.add_run(test_ids, args.fails)
+    run_id, test_ids_queued = db.add_run(test_ids, args.fails, args.start)
+    print("run_id", run_id)
+    print("queued", len(test_ids_queued), "tests")
 
 
 def parse_args() -> argparse.Namespace:
@@ -274,6 +280,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="enqueue only tests that have not passed",
     )
+    enqueue.add_argument(
+        "--start",
+        type=dt.fromisoformat,
+        default=None,
+        help="date and time for the run to start",
+    )
     enqueue.set_defaults(func=cmd_enqueue_tests)
 
     return parser.parse_args()
@@ -287,24 +299,14 @@ def main():
         args.func(args)
     else:
         print("error")
-    # SUBCOMMAND 1 - scan toolboxs, create default test no test for the tool exists
-    # automatic creation of test configs
-    # count_created = create_new_tests()
-    # print(f"created {count_created} new tests")
-    # return
 
+    # --- needs env specified ---
     # SUBCOMMAND 2 - run single test -- for running single in subprocess
-    # if len(sys.argv) == 2:
-    #     # print("SINGLE")
-    #     run_single_test(Path(sys.argv[1]), 0, "baseline")
-    # SUBCOMMAND 3 - run waiting tests for env -- this will be run periodically via "cron"
-    # else:
-    # running all tests found
-    # cmd_run_all_tests()
+    # SUBCOMMAND 3 - run queued tests for env -- this will be run periodically via "cron"
 
     # --- env independent ---
-    # SUBCOMMAND 1 - see above
-    # SUBCOMMAND 4 - enqueue tests for both envs, option to skip tests where both envs passed
+    # SUBCOMMAND 1 - scan toolboxes, create default test no test for the tool exists
+    # SUBCOMMAND 4 - enqueue tests for both envs, option to skip tests where both envs passed, set start time
     # SUBCOMMAND 5 - ?update sqlite database with test results
 
 
