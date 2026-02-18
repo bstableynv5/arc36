@@ -37,7 +37,9 @@ class OutputCapture:
         self.logger.debug(message.strip("\n"))  # densify
 
 
-def setup_logger(name: str, log_file: Union[Path, str]) -> logging.Logger:
+def setup_logger(
+    name: str, log_file: Union[Path, str], add_timestamp: bool = True
+) -> logging.Logger:
     log_file = Path(log_file)
 
     logger = logging.getLogger(name)
@@ -46,9 +48,10 @@ def setup_logger(name: str, log_file: Union[Path, str]) -> logging.Logger:
     formatter = logging.Formatter("%(asctime)s:%(levelname)5s: %(message)s", datefmt=PSEUDO_ISO_FMT)
 
     log_file.parent.mkdir(exist_ok=True, parents=True)
-    datetag = f"_{dt.now():{EXTRA_PSEUDO_ISO_FMT}}"
-    log_file = log_file.with_stem(log_file.stem + datetag)
-    fh = logging.FileHandler(str(log_file), mode="w", encoding="utf-8")
+    if add_timestamp:
+        datetag = f"_{dt.now():{EXTRA_PSEUDO_ISO_FMT}}"
+        log_file = log_file.with_stem(log_file.stem + datetag)
+    fh = logging.FileHandler(str(log_file), encoding="utf-8")
     fh.setFormatter(formatter)
     fh.setLevel(logging.DEBUG)
     logger.addHandler(fh)
