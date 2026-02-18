@@ -30,7 +30,7 @@ class DB:
     def _fk_constraints(self, conn: sqlite3.Connection):
         conn.execute("PRAGMA foreign_keys = ON")
 
-    def post_results(
+    def update_test_status(
         self,
         run_id: int,
         env: str,
@@ -39,7 +39,7 @@ class DB:
         run_result: Optional[str] = None,
         compare_result: Optional[str] = None,
     ) -> None:
-        statement = (
+        upsert_status = (
             "INSERT INTO test_instances (run_id, env, id, status, run_result, compare_result) "
             "VALUES (?, ?, ?, ?, ?, ?) "
             "ON CONFLICT DO UPDATE SET "
@@ -51,10 +51,10 @@ class DB:
             with closing(sqlite3.connect(self._sqlite_file)) as conn:
                 with conn:
                     row_data = (run_id, env, test_id, status, run_result, compare_result)
-                    conn.execute(statement, row_data)
+                    conn.execute(upsert_status, row_data)
                     conn.commit()
 
-    def add_run(
+    def add_run_enqueue_tests(
         self, test_ids: Iterable[str], fails: bool = False, start_local: Optional[dt] = None
     ) -> tuple[int, list[str]]:
         # query_next_runid = "SELECT ifnull(max(run_id)+1, 0) FROM test_instances"
@@ -90,7 +90,7 @@ class DB:
                     conn.executemany(insert_instance, baseline + target)
                     return (next_runid, sorted(test_ids))
 
-    def waiting_tests(self, env: str) -> tuple[int, set[str]]:
+    def dequeue_tests(self, env: str) -> tuple[int, set[str]]:
         # this is query a little unhinged
         query_queued = (
             "SELECT run_id, id FROM test_instances WHERE env=? AND status='queued' "
