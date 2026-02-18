@@ -17,6 +17,7 @@ from typing import Any, Generator, Literal, Optional, Union
 
 import arcpy
 from db import DB
+from report_template import make_report_html
 from test import Parameter, Test, make_tests, parameter_dict, parse_test_ini
 from test_logging import OutputCapture, setup_logger
 
@@ -238,6 +239,11 @@ class GeneralConfig:
         log.info(f"Queued {len(test_ids_queued)} tests for run {run_id}")
         log.debug("END CMD_ENQUEUE")
 
+    def cmd_generate_report(self, args: argparse.Namespace):
+        run_rows, test_rows = DB(str(self.database)).get_everything()
+        html = make_report_html(run_rows, test_rows)
+        Path(args.path).write_text(html)
+
     def configure_parser(self) -> argparse.ArgumentParser:
         parser = argparse.ArgumentParser()
         subparsers = parser.add_subparsers(dest="command", help="Subcommands")
@@ -292,6 +298,16 @@ class GeneralConfig:
         )
         enqueue.set_defaults(func=self.cmd_enqueue_tests)
 
+        ######
+        report = subparsers.add_parser("report", help="html report of runs and tests")
+        report.set_defaults(func=self.cmd_generate_report)
+        report.add_argument(
+            "--path",
+            type=str,
+            default="report.html",
+            help="path to write report",
+        )
+
         return parser
 
 
@@ -328,7 +344,7 @@ def main():
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print(e)
+    # try:
+    main()
+# except Exception as e:
+#     print(e)

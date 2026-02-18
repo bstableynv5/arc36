@@ -30,6 +30,18 @@ class DB:
     def _fk_constraints(self, conn: sqlite3.Connection):
         conn.execute("PRAGMA foreign_keys = ON")
 
+    def get_everything(self) -> tuple[list[tuple[Any, ...]], list[tuple[Any, ...]]]:
+        query_runs = "SELECT * FROM runs"
+        query_tests = "SELECT * FROM test_instances"
+        with (
+            self._lockfile,
+            closing(sqlite3.connect(self._sqlite_file)) as conn,
+            conn,
+        ):
+            runs = conn.execute(query_runs).fetchall()
+            test_instances = conn.execute(query_tests).fetchall()
+            return (runs, test_instances)
+
     def update_test_status(
         self,
         run_id: int,
@@ -47,12 +59,14 @@ class DB:
             "run_result=excluded.run_result, "
             "compare_result=excluded.compare_result"
         )
-        with self._lockfile:
-            with closing(sqlite3.connect(self._sqlite_file)) as conn:
-                with conn:
-                    row_data = (run_id, env, test_id, status, run_result, compare_result)
-                    conn.execute(upsert_status, row_data)
-                    conn.commit()
+        with (
+            self._lockfile,
+            closing(sqlite3.connect(self._sqlite_file)) as conn,
+            conn,
+        ):
+            row_data = (run_id, env, test_id, status, run_result, compare_result)
+            conn.execute(upsert_status, row_data)
+            conn.commit()
 
     def add_run_enqueue_tests(
         self, test_ids: Iterable[str], fails: bool = False, start_local: Optional[dt] = None
@@ -73,22 +87,24 @@ class DB:
         if start_local:
             start = start_local.astimezone(timezone.utc)
 
-        with self._lockfile:
-            with closing(sqlite3.connect(self._sqlite_file)) as conn:
-                with conn:
-                    next_runid = conn.execute(insert_run, (start,)).lastrowid
-                    if fails:
-                        failures = set(id for (id,) in conn.execute(query_failures).fetchall())
-                        test_ids = set(test_ids) & failures
-                    if not test_ids:
-                        # cancel add_run if no tests to add
-                        conn.rollback()
-                        return (-1, [])
-                    baseline = [(next_runid, "baseline", id) for id in test_ids]
-                    # target = [(next_runid, "target", id) for id in test_ids]
-                    target = []  # TODO DEBUG PURPOSES
-                    conn.executemany(insert_instance, baseline + target)
-                    return (next_runid, sorted(test_ids))
+        with (
+            self._lockfile,
+            closing(sqlite3.connect(self._sqlite_file)) as conn,
+            conn,
+        ):
+            next_runid = conn.execute(insert_run, (start,)).lastrowid
+            if fails:
+                failures = set(id for (id,) in conn.execute(query_failures).fetchall())
+                test_ids = set(test_ids) & failures
+            if not test_ids:
+                # cancel add_run if no tests to add
+                conn.rollback()
+                return (-1, [])
+            baseline = [(next_runid, "baseline", id) for id in test_ids]
+            # target = [(next_runid, "target", id) for id in test_ids]
+            target = []  # TODO DEBUG PURPOSES
+            conn.executemany(insert_instance, baseline + target)
+            return (next_runid, sorted(test_ids))
 
     def dequeue_tests(self, env: str) -> tuple[int, set[str]]:
         # this is query a little unhinged
