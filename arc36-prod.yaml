@@ -26,6 +26,8 @@ dependencies:
   - attrs=24.3.0=py313haa95532_0
   - autograd=1.7.0=py313haa95532_0
   - autograd-gamma=0.5.0=py313haa95532_0
+  - awkward=2.9.0=pyhcf101f3_0
+  - awkward-cpp=52=py313h1a38498_0
   - aws-crt-cpp=0.27.4=1
   - aws-sdk-cpp-base=1.11.386=2
   - azure-core=1.12.0=py_0
