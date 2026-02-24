@@ -126,3 +126,13 @@ class DB:
                     run_id = run_ids.pop()  # get any since should be only 1
                     conn.execute(update_status, (run_id, env))
                     return run_id, test_ids
+
+    def set_run_endtime(self, run_id: int):
+        update_end = "UPDATE runs WHERE id=? SET end=?"
+
+        now = dt.now().astimezone(timezone.utc)
+
+        with self._lockfile:
+            with closing(sqlite3.connect(self._sqlite_file)) as conn:
+                with conn:
+                    conn.execute(update_end, (run_id, now))
