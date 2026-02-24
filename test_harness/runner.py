@@ -18,7 +18,7 @@ from typing import Any, Generator, Literal, Optional, Union
 import arcpy
 from db import DB
 from report_template import make_report_html
-from test import Parameter, Test, make_tests, parameter_dict, parse_test_ini
+from test import Parameter, Test, make_tests, parameter_dict, parse_test_ini, normalize_toolbox_name
 from test_logging import OutputCapture, setup_logger
 
 
@@ -30,11 +30,11 @@ def find_tests(root: Union[str, Path]) -> list[tuple[Path, str, Test]]:
 
 
 def find_toolboxes(root: Union[str, Path]) -> list[Test]:
-    root = Path(root)
+    root = Path(root)  # I:/.../toolboxes/baseline
     toolboxes = chain(root.glob("*/*.atbx"), root.glob("*/*.tbx"))
     tests: list[Test] = []
     for toolbox in toolboxes:
-        tests.extend(make_tests(toolbox))
+        tests.extend(make_tests(toolbox, root))
     return tests
 
 
@@ -62,6 +62,8 @@ def run_single_test(
         test_logfile = test_path.parent / "logs" / f"{run_id:03d}_{env}_{test_id}.log"
         logger = setup_logger(test_id, test_logfile)
 
+        toolbox_path = config.toolboxes_dir / env / test.toolbox  # test.toolbox is relative
+
         temp_inputs_parent = Path(gettempdir()) if test.run_local else test_path.parent
 
         inputs = test_path.parent / "inputs"
@@ -75,6 +77,7 @@ def run_single_test(
         logger.info(f"Alias:       {test.alias}")
         logger.info(f"Description: {test.description}")
         logger.info(f"Run Local:   {test.run_local}")
+        logger.debug(f"{toolbox_path=!s}")
         logger.debug(f"{inputs=!s}")
         logger.debug(f"{temp_inputs=!s}")
         logger.debug(f"{outputs=!s}")
@@ -94,10 +97,10 @@ def run_single_test(
             start = time.perf_counter()
             logger.info("running...")
             logger.debug("\n--- start tool output ---")
-            if random.random() < 0.5:
-                raise TestFailException("random error")
+            # if random.random() < 0.5:
+            #     raise TestFailException("random error")
             with OutputCapture(logger):
-                run(test.toolbox, test.alias, parameter_dict(final_params))
+                run(str(toolbox_path), test.alias, parameter_dict(final_params))
             logger.debug("\n---  end tool output  ---")
             took = time.perf_counter() - start
             logger.info(f"took {timedelta(seconds=took)}")
@@ -174,7 +177,7 @@ def run_all_tests(
 
 
 def create_new_tests(toolbox_dir: Path, tests_dir: Path) -> int:
-    tests = find_toolboxes(toolbox_dir)
+    tests = find_toolboxes(toolbox_dir)  # I:/.../toolboxes/baseline
     tests_dir.mkdir(exist_ok=True)
     count = 0
     for t in tests:
@@ -204,12 +207,32 @@ class GeneralConfig:
     def get_general_logger(self) -> logging.Logger:
         return setup_logger("general", self.logs_dir / "general.log", add_timestamp=False)
 
+    def cmd_normalize_toolboxes(self, args: argparse.Namespace):
+        """convert folder and atbx(tbx) names to 'normalized' versions so that
+        all toolbox paths are the same other than the 'env'-based root."""
+        log = self.get_general_logger()
+        log.debug("START CMD_TBNORMALIZE")
+        for env in self.environments.keys():
+            root = (self.toolboxes_dir / env).absolute()
+            log.info(f"Normalizing {env}")
+            log.info(f"Root: {root}")
+            toolboxes = chain(root.glob("*/*.atbx"), root.glob("*/*.tbx"))
+            for tb in toolboxes:
+                normalized_name = normalize_toolbox_name(tb)
+                # rename file then file's parent dir
+                new_tb_atbx = tb.rename(tb.with_stem(normalized_name))
+                new_tb_parent = tb.parent.rename(tb.parent.with_name(normalized_name))
+                new_tb = new_tb_parent / new_tb_atbx.name
+                log.info(f"{tb.relative_to(root)} -> {new_tb.relative_to(root)}")
+        log.debug("END CMD_TBNORMALIZE")
+
     def cmd_create_new_tests(self, args: argparse.Namespace):
+        scan_dir = self.toolboxes_dir / args.env
         log = self.get_general_logger()
         log.debug("START CMD_CREATE")
-        log.info("Scanning")
-        t_dir = Path("arctests")  # TODO for dev! r"I:\test\ArcGISPro_VersionTesting\tests"
-        count_created = create_new_tests(self.toolboxes_dir, t_dir)
+        log.info(f"Scanning {scan_dir}")
+        testout_dir = Path("arctests")  # TODO for dev! r"I:\test\ArcGISPro_VersionTesting\tests"
+        count_created = create_new_tests(scan_dir, testout_dir)
         log.info(f"Created {count_created} new tests")
         log.debug("END CMD_CREATE")
 
@@ -280,7 +303,18 @@ class GeneralConfig:
         run_all.set_defaults(func=self.cmd_run_all_tests)
 
         ######
+        tbnormalize = subparsers.add_parser("tbnormalize", help="normalizes toolbox folders and atbx filenames for all envs")
+        tbnormalize.set_defaults(func=self.cmd_normalize_toolboxes)
+
+        ######
         create = subparsers.add_parser("create", help="scans toolboxes and creates test templates")
+        create.add_argument(
+            "--env",
+            type=str,
+            choices=["baseline", "target"],
+            default="baseline",  # TODO: this is for dev only
+            help="environment toolboxes to scan. always want default.",
+        )
         create.set_defaults(func=self.cmd_create_new_tests)
 
         ######
