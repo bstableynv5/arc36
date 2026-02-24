@@ -9,6 +9,23 @@ import arcpy
 from constants import PSEUDO_ISO_FMT
 
 
+def normalize_toolbox_name(toolbox: Union[Path, str]) -> str:
+    """Normalize toolbox name by removing version info, change to lowercase,
+    and replace non-alphanumerics with underscore.
+
+    Args:
+        toolbox (Union[Path, str]): absolute or relative path to toolbox atbx/tbx.
+
+    Returns:
+        str: normalized toolbox atbx stem.
+    """
+    toolbox_name = Path(toolbox).stem.lower()
+    toolbox_name = re.sub(r"v?\d(\.\d){1,2}", r"", toolbox_name)  # v0.0.0
+    toolbox_name = re.sub(r"\W", r"_", toolbox_name)  # \W = [^a-zA-Z0-9_]
+    toolbox_name = toolbox_name.strip(" _")
+    return toolbox_name
+
+
 @dataclass(frozen=True)
 class Parameter:
     name: str
@@ -36,15 +53,8 @@ class Test:
     outputs: list[str] = field(default_factory=list)
     """output files from script to be kept and compared"""
 
-    def normalize_toolbox_name(self) -> str:
-        toolbox_name = Path(self.toolbox).stem.lower()
-        toolbox_name = re.sub(r"v?\d(\.\d){1,2}", r"", toolbox_name)  # v0.0.0
-        toolbox_name = re.sub(r"\W", r"_", toolbox_name)  # \W = [^a-zA-Z0-9_]
-        toolbox_name = toolbox_name.strip(" _")
-        return toolbox_name
-
     def test_id(self, variant: str = "default") -> str:
-        return ".".join([self.normalize_toolbox_name(), self.alias.lower(), variant])
+        return ".".join([normalize_toolbox_name(self.toolbox), self.alias.lower(), variant])
 
     def test_path(self, tests_dir: Path, variant: str = "default") -> Path:
         test_id = self.test_id(variant)
@@ -120,13 +130,20 @@ def get_parameters(toolbox_path: Union[str, Path], tool_alias: str) -> list[Para
     ]
 
 
-def make_tests(toolbox_path: Union[str, Path]) -> list[Test]:
-    """arcpy"""
+def make_tests(toolbox_path: Union[str, Path], relative_to: Optional[Path] = None) -> list[Test]:
+    """arcpy
+    toolbox_path: absolute path to a toolbox
+    relative_to: a parent in `toolbox_path` to make the test's toolbox property relative to.
+    """
+    toolbox_path = Path(toolbox_path)
+    relative_toolbox = toolbox_path
+    if relative_to is not None:
+        relative_toolbox = toolbox_path.relative_to(relative_to)
     # https://pro.arcgis.com/en/pro-app/latest/arcpy/functions/importtoolbox.htm
     toolbox = arcpy.ImportToolbox(str(toolbox_path))
     return [
         Test(
-            toolbox=str(toolbox_path),
+            toolbox=str(relative_toolbox),
             alias=alias,
             parameters=get_parameters(toolbox_path, alias),
         )
