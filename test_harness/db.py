@@ -1,3 +1,4 @@
+from itertools import product
 import sqlite3
 from contextlib import closing
 from datetime import datetime as dt  # broken for no reason
@@ -69,7 +70,11 @@ class DB:
             conn.commit()
 
     def add_run_enqueue_tests(
-        self, test_ids: Iterable[str], fails: bool = False, start_local: Optional[dt] = None
+        self,
+        test_ids: Iterable[str],
+        envs: list[str],
+        fails: bool = False,
+        start_local: Optional[dt] = None,
     ) -> tuple[int, list[str]]:
         # query_next_runid = "SELECT ifnull(max(run_id)+1, 0) FROM test_instances"
         insert_run = "INSERT INTO runs (start) VALUES (?)"
@@ -100,10 +105,8 @@ class DB:
                 # cancel add_run if no tests to add
                 conn.rollback()
                 return (-1, [])
-            baseline = [(next_runid, "baseline", id) for id in test_ids]
-            # target = [(next_runid, "target", id) for id in test_ids]
-            target = []  # TODO DEBUG PURPOSES
-            conn.executemany(insert_instance, baseline + target)
+            instance_keys = [(next_runid, env, id) for env, id in product(envs, test_ids)]
+            conn.executemany(insert_instance, instance_keys)
             return (next_runid, sorted(test_ids))
 
     def dequeue_tests(self, env: str) -> tuple[int, set[str]]:
