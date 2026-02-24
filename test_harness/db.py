@@ -114,25 +114,28 @@ class DB:
         )
         update_status = "UPDATE test_instances SET status='waiting' WHERE run_id=? AND env=?"
 
-        with self._lockfile:
-            with closing(sqlite3.connect(self._sqlite_file)) as conn:
-                with conn:
-                    enqueued = conn.execute(query_queued, (env,)).fetchall()
-                    if not enqueued:
-                        return (-1, set())
-                    test_ids: set[str] = set(id for _, id in enqueued)
-                    run_ids: set[int] = set(run_id for run_id, _ in enqueued)
-                    assert len(run_ids) == 1
-                    run_id = run_ids.pop()  # get any since should be only 1
-                    conn.execute(update_status, (run_id, env))
-                    return run_id, test_ids
+        with (
+            self._lockfile,
+            closing(sqlite3.connect(self._sqlite_file)) as conn,
+            conn,
+        ):
+            enqueued = conn.execute(query_queued, (env,)).fetchall()
+            if not enqueued:
+                return (-1, set())
+            test_ids: set[str] = set(id for _, id in enqueued)
+            run_ids: set[int] = set(run_id for run_id, _ in enqueued)
+            assert len(run_ids) == 1
+            run_id = run_ids.pop()  # get any since should be only 1
+            conn.execute(update_status, (run_id, env))
+            return run_id, test_ids
 
     def set_run_endtime(self, run_id: int):
         update_end = "UPDATE runs WHERE id=? SET end=?"
 
-        now = dt.now().astimezone(timezone.utc)
-
-        with self._lockfile:
-            with closing(sqlite3.connect(self._sqlite_file)) as conn:
-                with conn:
-                    conn.execute(update_end, (run_id, now))
+        with (
+            self._lockfile,
+            closing(sqlite3.connect(self._sqlite_file)) as conn,
+            conn,
+        ):
+            now = dt.now().astimezone(timezone.utc)
+            conn.execute(update_end, (run_id, now))
