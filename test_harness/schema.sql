@@ -41,7 +41,8 @@ create view if not exists complete_tests_passing as
         where
             status='complete'
         group by 
-            run_id, id)
+            run_id, id
+    )
     select 
         run_id, 
         id, 
@@ -50,3 +51,29 @@ create view if not exists complete_tests_passing as
         cast(min(run_passed, compare_passed) as boolean) as both_passed
     from complete_tests;
 
+-- Get complete runs pass/fail status.
+create view if not exists complete_runs_passing as
+    with test_summary as (
+        select
+            run_id,
+            count(id) as num_tests,
+            sum(both_passed) as num_passed,
+            cast(min(ifnull(both_passed,0)) as boolean) as passed
+        from
+            complete_tests_passing
+        group by
+            run_id
+    )
+    select
+        id,
+        start,
+        end,
+        num_tests,
+        num_passed,
+        passed
+    from
+        runs inner join test_summary on id=run_id
+    group by
+        id
+    order by
+        id asc;
