@@ -247,6 +247,7 @@ class GeneralConfig:
         if test_ids_to_run:
             log.info(f"{len(test_ids_to_run)} tests for {args.env} updated from queued to waiting")
             run_all_tests(self, run_id, args.env, test_ids_to_run)
+            db.set_run_endtime(run_id)
         else:
             log.info("No queued tests eligible to run")
         log.debug("END CMD_RUN_ALL")
