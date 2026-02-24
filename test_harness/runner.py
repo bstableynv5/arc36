@@ -256,10 +256,12 @@ class GeneralConfig:
         log = self.get_general_logger()
         log.debug("START CMD_ENQUEUE")
         test_ids = [id for _, id, _ in find_tests(self.tests_dir)]
+        envs = list(self.environments.keys())
         log.info(f"Found {len(test_ids)} tests")
+        log.info(f"Found {len(envs)} environments: {envs}")
         log.debug(f"{args.start=}")  # input start is assumed to be LOCAL time
         db = DB(str(self.database))
-        run_id, test_ids_queued = db.add_run_enqueue_tests(test_ids, args.fails, args.start)
+        run_id, test_ids_queued = db.add_run_enqueue_tests(test_ids, envs, args.fails, args.start)
         log.info(f"Queued {len(test_ids_queued)} tests for run {run_id}")
         log.debug("END CMD_ENQUEUE")
 
@@ -304,7 +306,9 @@ class GeneralConfig:
         run_all.set_defaults(func=self.cmd_run_all_tests)
 
         ######
-        tbnormalize = subparsers.add_parser("tbnormalize", help="normalizes toolbox folders and atbx filenames for all envs")
+        tbnormalize = subparsers.add_parser(
+            "tbnormalize", help="normalizes toolbox folders and atbx filenames for all envs"
+        )
         tbnormalize.set_defaults(func=self.cmd_normalize_toolboxes)
 
         ######
