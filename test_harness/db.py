@@ -107,10 +107,9 @@ class DB:
             return (next_runid, sorted(test_ids))
 
     def dequeue_tests(self, env: str) -> tuple[int, set[str]]:
-        # this is query a little unhinged
         query_queued = (
             "SELECT run_id, id FROM test_instances WHERE env=? AND status='queued' "
-            "AND run_id=(SELECT id FROM runs WHERE id=(SELECT max(id) FROM runs) AND start<=datetime('now'))"
+            "AND run_id=(SELECT max(id) FROM runs WHERE start<=datetime('now')"
         )
         update_status = "UPDATE test_instances SET status='waiting' WHERE run_id=? AND env=?"
 
