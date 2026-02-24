@@ -129,7 +129,7 @@ class DB:
             return run_id, test_ids
 
     def set_run_endtime(self, run_id: int):
-        update_end = "UPDATE runs WHERE id=? SET end=?"
+        update_end = "UPDATE runs SET end=? WHERE id=?"
 
         with (
             self._lockfile,
@@ -137,4 +137,4 @@ class DB:
             conn,
         ):
             now = dt.now().astimezone(timezone.utc)
-            conn.execute(update_end, (run_id, now))
+            conn.execute(update_end, (now, run_id))
