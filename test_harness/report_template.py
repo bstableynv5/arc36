@@ -1,7 +1,7 @@
 from datetime import datetime as dt
 from itertools import groupby
 
-from constants import PSEUDO_ISO_FMT
+from formats import PSEUDO_ISO_FMT
 
 RUN_ROW_TEMPLATE = r"<TR><TD>{0}</TD><TD>{1}</TD><TD>{2}</TD></TR>"
 TEST_ROW_TEMPLATE = r"<TR><TD>{0}</TD><TD>{1}</TD><TD>{2}</TD><TD>{3}</TD><TD data-result='{4}'>{4}</TD><TD data-result='{5}'>{5}</TD></TR>"
