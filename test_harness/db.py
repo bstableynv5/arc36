@@ -41,8 +41,8 @@ class DB:
     ]:
         query_runs = "SELECT * FROM runs"
         query_tests = "SELECT * FROM test_instances"
-        query_runs_passing = "SELECT * FROM complete_runs_passing"
-        query_tests_passing = "SELECT * FROM complete_tests_passing"
+        query_runs_passing = "SELECT * FROM complete_runs_passing ORDER BY id DESC"
+        query_tests_passing = "SELECT * FROM complete_tests_passing ORDER BY run_id DESC"
 
         with (
             self._lockfile,
