@@ -48,9 +48,7 @@ class TestFailException(Exception):
     """when a toolbox test fails"""
 
 
-def run_single_test(
-    config: 'GeneralConfig', test_path: Path, run_id: int, env: Literal["baseline", "target"]
-):
+def run_single_test(config: 'GeneralConfig', test_path: Path, run_id: int, env: str):
     try:
         results = DB(str(config.database))
         test_id = test_path.stem
@@ -97,7 +95,7 @@ def run_single_test(
             start = time.perf_counter()
             logger.info("running...")
             logger.debug("\n--- start tool output ---")
-            if env=="target" and random.random() < 0.5: # TODO for testing
+            if env == "target" and random.random() < 0.5:  # TODO for testing
                 raise TestFailException("random error")
             with OutputCapture(logger):
                 run(str(toolbox_path), test.alias, parameter_dict(final_params))
@@ -127,6 +125,7 @@ def run_single_test(
         else:
             logger.info("saving no outputs")
 
+        # TODO: 'compare' instead of 'complete'
         results.update_test_status(run_id, env, test_id, status="complete", run_result="PASS")
         logger.info("test finished\n")
 
@@ -168,6 +167,7 @@ def run_all_tests(
             ]
         )
 
+        # TODO: robustly remove temp inputs
         temp_inputs = f"inputs_{env}_{test_id}"
         for tempdir in (test_path.parent, Path(gettempdir())):
             rm = tempdir / temp_inputs
@@ -379,6 +379,7 @@ def main():
     # SUBCOMMAND 1 - scan toolboxes, create default test no test for the tool exists
     # SUBCOMMAND 2 - enqueue tests for both envs, option to skip tests where both envs passed, set start time
     # SUBCOMMAND 5 - create report (html)
+    # SUBCOMMAND 6 - normalize toolboxes -- rename toolbox folder and atbx
     # SUBCOMMAND ? - ?update sqlite database with test results
 
 
