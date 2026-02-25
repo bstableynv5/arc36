@@ -1,11 +1,9 @@
 import argparse
 import json
 import logging
-import math
 import random
 import shutil
 import subprocess
-import sys
 import time
 from dataclasses import dataclass, field, replace
 from datetime import datetime as dt  # broken for no reason
@@ -16,9 +14,10 @@ from tempfile import gettempdir
 from typing import Any, Generator, Literal, Optional, Union
 
 import arcpy
+import formats
 from db import DB
 from report_template import make_report_html
-from test import Parameter, Test, make_tests, parameter_dict, parse_test_ini, normalize_toolbox_name
+from test import Parameter, Test, make_tests, normalize_toolbox_name, parameter_dict, parse_test_ini
 from test_logging import OutputCapture, setup_logger
 
 
@@ -57,7 +56,7 @@ def run_single_test(config: 'GeneralConfig', test_path: Path, run_id: int, env: 
         # need run id, env
         test = parse_test_ini(test_path.read_text())
         # print("PARSED TEST")
-        test_logfile = test_path.parent / "logs" / f"{run_id:03d}_{env}_{test_id}.log"
+        test_logfile = test_path.parent / "logs" / formats.single_test_logfile(run_id, env, test_id)
         logger = setup_logger(test_id, test_logfile)
 
         toolbox_path = config.toolboxes_dir / env / test.toolbox  # test.toolbox is relative
@@ -65,8 +64,8 @@ def run_single_test(config: 'GeneralConfig', test_path: Path, run_id: int, env: 
         temp_inputs_parent = Path(gettempdir()) if test.run_local else test_path.parent
 
         inputs = test_path.parent / "inputs"
-        temp_inputs = temp_inputs_parent / f"inputs_{env}_{test_id}"
-        outputs = test_path.parent / f"outputs_{env}_{test_id}"  # TODO: not sure about this
+        temp_inputs = temp_inputs_parent / formats.single_test_inputs(env, test_id)
+        outputs = test_path.parent / formats.single_test_outputs(env, test_id)
 
         logger.debug(f"{run_id=}")
         logger.debug(f"{env=}")
@@ -138,7 +137,7 @@ def run_all_tests(
     config: 'GeneralConfig', run_id: int, env: str, test_ids_to_run: Optional[set[str]] = None
 ):
     tests_dir = config.tests_dir
-    run_logfile = config.logs_dir / f"{run_id:03d}_{env}.log"
+    run_logfile = config.logs_dir / formats.run_logfile(run_id, env)
     env_python = config.environments[env]
     logger = setup_logger(f"run_{run_id}", run_logfile)
     logger.info("RUN ALL")
@@ -168,11 +167,12 @@ def run_all_tests(
         )
 
         # TODO: robustly remove temp inputs
-        temp_inputs = f"inputs_{env}_{test_id}"
+        temp_inputs = formats.single_test_inputs(env, test_id)
         for tempdir in (test_path.parent, Path(gettempdir())):
             rm = tempdir / temp_inputs
-            logger.debug(f"REMOVE {rm}")
-            shutil.rmtree(str(rm), ignore_errors=True)
+            if rm.exists():
+                logger.debug(f"REMOVE {rm}")
+                shutil.rmtree(str(rm), ignore_errors=True)
     logger.info("FINISHED ALL")
 
 
