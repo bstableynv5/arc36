@@ -262,8 +262,11 @@ class GeneralConfig:
         log.info(f"Found {len(envs)} environments: {envs}")
         log.debug(f"{args.start=}")  # input start is assumed to be LOCAL time
         db = DB(str(self.database))
-        run_id, test_ids_queued = db.add_run_enqueue_tests(test_ids, envs, args.fails, args.start)
-        log.info(f"Queued {len(test_ids_queued)} tests for run {run_id}")
+        run_id, test_ids_queued = db.add_run_enqueue_tests(test_ids, envs, args.all, args.start)
+        if test_ids_queued:
+            log.info(f"Queued {len(test_ids_queued)} tests for run {run_id}")
+        else:
+            log.info("No tests enqueued")
         log.debug("END CMD_ENQUEUE")
 
     def cmd_generate_report(self, args: argparse.Namespace):
@@ -326,9 +329,9 @@ class GeneralConfig:
         ######
         enqueue = subparsers.add_parser("enqueue", help="add new test runs in waiting status")
         enqueue.add_argument(
-            "--fails",
+            "--all",
             action="store_true",
-            help="enqueue only tests that have not passed",
+            help="enqueue all tests including ones that have passed",
         )
         enqueue.add_argument(
             "--start",

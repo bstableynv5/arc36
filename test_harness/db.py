@@ -87,15 +87,15 @@ class DB:
         self,
         test_ids: Iterable[str],
         envs: list[str],
-        fails: bool = False,
+        include_passes: bool = False,
         start_local: Optional[dt] = None,
     ) -> tuple[int, list[str]]:
         # query_next_runid = "SELECT ifnull(max(run_id)+1, 0) FROM test_instances"
         insert_run = "INSERT INTO runs (start) VALUES (?)"
         query_failures = (
-            "SELECT id FROM test_instances "
+            "SELECT DISTINCT id FROM test_instances "  # DISTINCT not strictly required in sqlite
             "WHERE run_result='FAIL' "
-            "AND run_id=(SELECT max(run_id) FROM test_instances WHERE id=id) "
+            "AND run_id=(SELECT max(id) FROM runs) "
             "GROUP BY id"
         )
         insert_instance = (
@@ -111,14 +111,15 @@ class DB:
             closing(sqlite3.connect(self._sqlite_file)) as conn,
             conn,
         ):
-            next_runid = conn.execute(insert_run, (start,)).lastrowid
-            if fails:
+            if not include_passes:
                 failures = set(id for (id,) in conn.execute(query_failures).fetchall())
                 test_ids = set(test_ids) & failures
             if not test_ids:
                 # cancel add_run if no tests to add
                 conn.rollback()
                 return (-1, [])
+
+            next_runid = conn.execute(insert_run, (start,)).lastrowid
             instance_keys = [(next_runid, env, id) for env, id in product(envs, test_ids)]
             conn.executemany(insert_instance, instance_keys)
             return (next_runid, sorted(test_ids))
