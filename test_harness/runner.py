@@ -266,7 +266,7 @@ class GeneralConfig:
         log.debug("END CMD_ENQUEUE")
 
     def cmd_generate_report(self, args: argparse.Namespace):
-        run_rows, test_rows, runs_passing, tests_passing = DB(str(self.database)).get_everything()
+        runs_passing, tests_passing = DB(str(self.database)).get_passing_views()
         html = make_report_html(runs_passing, tests_passing)
         Path(args.path).write_text(html)
 

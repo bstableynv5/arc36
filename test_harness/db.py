@@ -31,18 +31,9 @@ class DB:
     def _fk_constraints(self, conn: sqlite3.Connection):
         conn.execute("PRAGMA foreign_keys = ON")
 
-    def get_everything(
-        self,
-    ) -> tuple[
-        list[tuple[Any, ...]],
-        list[tuple[Any, ...]],
-        list[tuple[Any, ...]],
-        list[tuple[Any, ...]],  # ok
-    ]:
+    def get_raw_tables(self) -> tuple[list[tuple[Any, ...]], list[tuple[Any, ...]]]:
         query_runs = "SELECT * FROM runs"
         query_tests = "SELECT * FROM test_instances"
-        query_runs_passing = "SELECT * FROM complete_runs_passing ORDER BY id DESC"
-        query_tests_passing = "SELECT * FROM complete_tests_passing ORDER BY run_id DESC"
 
         with (
             self._lockfile,
@@ -51,9 +42,20 @@ class DB:
         ):
             runs = conn.execute(query_runs).fetchall()
             test_instances = conn.execute(query_tests).fetchall()
+            return (runs, test_instances)
+
+    def get_passing_views(self) -> tuple[list[tuple[Any, ...]], list[tuple[Any, ...]]]:
+        query_runs_passing = "SELECT * FROM complete_runs_passing ORDER BY id DESC"
+        query_tests_passing = "SELECT * FROM complete_tests_passing ORDER BY run_id DESC"
+
+        with (
+            self._lockfile,
+            closing(sqlite3.connect(self._sqlite_file)) as conn,
+            conn,
+        ):
             runs_passing = conn.execute(query_runs_passing).fetchall()
             tests_passing = conn.execute(query_tests_passing).fetchall()
-            return (runs, test_instances, runs_passing, tests_passing)
+            return (runs_passing, tests_passing)
 
     def update_test_status(
         self,
