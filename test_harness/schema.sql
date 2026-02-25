@@ -74,6 +74,4 @@ create view if not exists complete_runs_passing as
     from
         runs inner join test_summary on id=run_id
     group by
-        id
-    order by
-        id asc;
+        id;
