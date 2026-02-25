@@ -97,8 +97,8 @@ def run_single_test(
             start = time.perf_counter()
             logger.info("running...")
             logger.debug("\n--- start tool output ---")
-            # if random.random() < 0.5:
-            #     raise TestFailException("random error")
+            if env=="target" and random.random() < 0.5: # TODO for testing
+                raise TestFailException("random error")
             with OutputCapture(logger):
                 run(str(toolbox_path), test.alias, parameter_dict(final_params))
             logger.debug("\n---  end tool output  ---")
@@ -266,8 +266,8 @@ class GeneralConfig:
         log.debug("END CMD_ENQUEUE")
 
     def cmd_generate_report(self, args: argparse.Namespace):
-        run_rows, test_rows = DB(str(self.database)).get_everything()
-        html = make_report_html(run_rows, test_rows)
+        run_rows, test_rows, runs_passing, tests_passing = DB(str(self.database)).get_everything()
+        html = make_report_html(runs_passing, tests_passing)
         Path(args.path).write_text(html)
 
     def configure_parser(self) -> argparse.ArgumentParser:
