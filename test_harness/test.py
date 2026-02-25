@@ -108,8 +108,17 @@ run_local = {str(self.run_local).lower()}
 
         return resolved
 
-    def resolve_outputs(self, input_dir: Path, output_dir: Path) -> list[tuple[Path, Path]]:
-        return [(input_dir / src, output_dir / src) for src in self.outputs]
+    def resolve_outputs(
+        self, input_dir: Path, output_dir: Path, inputs_dirname: str = "inputs"
+    ) -> list[tuple[Path, Path]]:
+        """produce source/destination pairs of paths for the files specified
+        to be saved as outputs. output paths _should_ begin with `inputs` to
+        mirror the way true input parameters are signaled, but this function
+        will work when `inputs` is not a prefix on the output path."""
+        path_parts = (Path(p).parts for p in self.outputs)  # break
+        path_parts = (p[1:] if p[0] == inputs_dirname else p for p in path_parts)  # filter
+        cleaned_outputs = (Path(*p) for p in path_parts)  # join
+        return [(input_dir / src, output_dir / src) for src in cleaned_outputs]
 
 
 def parameter_dict(params: list[Parameter]) -> dict[str, Any]:
