@@ -4,6 +4,7 @@ import logging
 import random
 import shutil
 import subprocess
+import sys
 import time
 from dataclasses import dataclass, field, replace
 from datetime import datetime as dt  # broken for no reason
@@ -350,10 +351,11 @@ class GeneralConfig:
         return parser
 
 
-def open_config() -> GeneralConfig:
+def open_config(config_file: Union[Path, str] = "config.json") -> GeneralConfig:
     """looks in cwd"""
 
-    values = json.loads(Path("config.json").read_text())
+    config_file = Path(config_file)
+    values = json.loads(config_file.read_text())
     return GeneralConfig(
         environments=values["environments"],
         root_dir=Path(values["root_dir"]),
@@ -365,8 +367,8 @@ def open_config() -> GeneralConfig:
 
 
 def main():
-
-    config = open_config()
+    config_file = Path(sys.argv[0]).absolute().parent / "config.json"
+    config = open_config(config_file)
     parser = config.configure_parser()
     args = parser.parse_args()
     args.func(args)
