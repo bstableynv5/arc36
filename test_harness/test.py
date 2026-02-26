@@ -41,7 +41,7 @@ class Parameter:
 @dataclass(frozen=True)
 class Test:
     toolbox: str
-    """absolute path to atbx/tbx"""
+    """realtive path to atbx/tbx"""
     alias: str
     """tool name/alias, not display name"""
     description: str = ""
@@ -73,7 +73,7 @@ class Test:
         now = dt.now()
         content = f'''; generated {now:{PSEUDO_ISO_FMT}}
 [test]
-; full path to toolbox (atbx/tbx) being tested.
+; relative path to toolbox (atbx/tbx) being tested.
 toolbox = {self.toolbox}
 ; alias (tool's internal name) of tool being tested.
 alias = {self.alias}
@@ -83,11 +83,14 @@ description = {self.description}
 run_local = {str(self.run_local).lower()}
 
 [parameters]
-; tool input parameters.
+; tool parameters.
+; files/folders/feature classes should be provided relative to the 'inputs' folder.
+; any newly created output files should be created in the 'inputs' folder.
 {parameter_content}
 
 [outputs]
-; list expected output files one per line.
+; list expected output files or folders, one per line.
+; they should begin with the 'inputs' folder.
 ; these are what will be compared between ArcPro 3.1 and ArcPro 3.6.
 {outputs_content}
 '''
