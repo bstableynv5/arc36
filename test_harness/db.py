@@ -129,7 +129,10 @@ class DB:
             "SELECT run_id, id FROM test_instances WHERE env=? AND status='queued' "
             "AND run_id=(SELECT max(id) FROM runs WHERE start<=datetime('now'))"
         )
-        update_status = "UPDATE test_instances SET status='waiting' WHERE run_id=? AND env=?"
+        update_status = (
+            "UPDATE test_instances SET status='waiting' "
+            "WHERE run_id=? AND env=? AND status='queued'"
+        )
 
         with (
             self._lockfile,
