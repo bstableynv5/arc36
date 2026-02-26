@@ -1,0 +1,26 @@
+# setup uvx: uv tool install mkdocs --with mkdocs-material
+# to make docs for DDH: uvx mkdocs build
+
+site_name: ArcPro v3.1 to v3.6
+
+docs_dir: docs
+site_dir: docs_render
+
+use_directory_urls: false
+
+nav:
+  - 'Setting up tool tests': 'how_to_setup_tests.md'
+
+theme:
+  name: material
+
+extra_css: 
+  - extra.css
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - def_list
+  - toc:
+      toc_depth: 3  # header level to show
