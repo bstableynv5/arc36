@@ -91,22 +91,23 @@ def run_single_test(config: 'GeneralConfig', test_path: Path, run_id: int, env: 
         # run on temp inputs
         try:
             final_params = test.resolve_inputs(temp_inputs)  # inputs_dirname=inputs.stem
-            logger.debug(parameter_dict(final_params))
+            tool_params = parameter_dict(final_params)
+            logger.debug(tool_params)
             start = time.perf_counter()
             logger.info("running...")
             logger.debug("\n--- start tool output ---")
-            if env == "target" and random.random() < 0.5:  # TODO for testing
-                raise TestFailException("random error")
+            # if env == "target" and random.random() < 0.5:  # TODO for testing
+            #     raise TestFailException("random error")
             with OutputCapture(logger):
-                run(str(toolbox_path), test.alias, parameter_dict(final_params))
+                run(str(toolbox_path), test.alias, tool_params)
             logger.debug("\n---  end tool output  ---")
             took = time.perf_counter() - start
             logger.info(f"took {timedelta(seconds=took)}")
-        except Exception as e:
-            raise TestFailException(f"Exception: {e}")
+        except Exception:
+            raise TestFailException("Tool crashed.")
 
         # copy outputs
-        transfers = test.resolve_outputs(temp_inputs, outputs)
+        transfers = test.resolve_outputs(temp_inputs, outputs)  # inputs_dirname=inputs.stem
         logger.debug([(str(src), str(dst)) for src, dst in transfers])
         shutil.rmtree(outputs, ignore_errors=True)
         if transfers:
@@ -130,7 +131,7 @@ def run_single_test(config: 'GeneralConfig', test_path: Path, run_id: int, env: 
         logger.info("test finished\n")
 
     except TestFailException as e:
-        logger.error(f"FAIL: {e}\n")
+        logger.critical(f"FAIL: {e}\n")
         results.update_test_status(run_id, env, test_id, status="complete", run_result="FAIL")
 
 
@@ -140,6 +141,8 @@ def run_all_tests(
     tests_dir = config.tests_dir
     run_logfile = config.logs_dir / formats.run_logfile(run_id, env)
     env_python = config.environments[env]
+    runner = config.root_dir / "temp_harness" / "runner.py"
+
     logger = setup_logger(f"run_{run_id}", run_logfile)
     logger.info("RUN ALL")
     logger.debug(f"{env=}")
@@ -156,7 +159,7 @@ def run_all_tests(
         subprocess.run(
             [
                 env_python,
-                "runner.py",
+                str(runner),
                 "run_one",
                 "--path",
                 str(test_path),

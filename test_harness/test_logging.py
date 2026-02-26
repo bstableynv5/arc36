@@ -23,9 +23,9 @@ class OutputCapture:
         self.logger = logger
 
     def __enter__(self) -> logging.Logger:
-        arcpy.AddMessage = self
-        arcpy.AddWarning = self
-        arcpy.AddError = self
+        arcpy.AddMessage = self._message
+        arcpy.AddWarning = self._warning
+        arcpy.AddError = self._error
         return self.logger
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -33,8 +33,17 @@ class OutputCapture:
         arcpy.AddWarning = OutputCapture._orig_warning
         arcpy.AddError = OutputCapture._orig_error
 
-    def __call__(self, message: str, *args: Any, **kwds: Any) -> Any:
+    def _message(self, message: str, *args: Any, **kwds: Any) -> Any:
         self.logger.debug(message.strip("\n"))  # densify
+        # OutputCapture._orig_message(message) # suppress messages
+
+    def _warning(self, message: str, *args: Any, **kwds: Any) -> Any:
+        self.logger.warning(message.strip("\n"))  # densify
+        # OutputCapture._orig_warning(message) # suppress messages
+
+    def _error(self, message: str, *args: Any, **kwds: Any) -> Any:
+        self.logger.error(message.strip("\n"))  # densify
+        OutputCapture._orig_error(message)
 
 
 def setup_logger(
