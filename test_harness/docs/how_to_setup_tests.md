@@ -6,7 +6,8 @@ This portion of testing toolboxes for compatibility with ArcGIS Pro v3.6 is larg
 
 This automation requires that each tool has some configuration describing the input data, tool parameters, and expected outputs to be compared.
 
-Your task is to prepare this input and configuration. You will not be required to run the tools over and over as JTree addresses issues.
+!!! success ""
+    Your task, as the expert in the tool's usual operation and data, is to prepare this input and configuration. You will not be required to run the tools over and over as JTree addresses issues.
 
 #### Important folders
 
@@ -20,30 +21,26 @@ Your task is to prepare this input and configuration. You will not be required t
 
 Each tool test is a folder containing a _configuration file_ and _input data_.
 
-The **test folder** will be named according to the scheme `toolbox_name.tool_alias.variant`. For example `x.y.default`. The _variant_ portion will be `default` for all initial test folders. The purpose of _variant_ is when we want to test the same tool multiple times _with different input data_.
-
-Within the folder is a **configuration file** (refered to as "config .ini"). This file will be named the same as the test folder, for example `x.y.default.ini`. We can create multiple configuration files in the same test folder if we want to run the same tool multiple times _on the same input data_ with different non-data parameters. This is a _subtest_.
-
 ![test_folder](img/test_folder_01.png)
+
+The **test folder** will be named according to the scheme `toolbox_name.tool_alias.variant`. For example `x.y.default`. The _variant_ portion will be `default` for all initial test folders. The purpose of _variant_ is when you want to test the same tool multiple times _with different input data_.
+
+Within the folder is a **configuration file** (refered to as "config .ini"). This file will be named the same as the test folder, for example `x.y.default.ini`. You can create multiple configuration files in the same test folder if you want to run the same tool multiple times _on the same input data_ with different non-data parameters. This is a _subtest_.
 
 See [Advanced configurations](#advanced-configurations) for more information about setting up test variants and subtests.
 
-The other item in a test folder is an **empty folder named `inputs`**. This will contain [all the data required](#choosing-good-data) for the tool to run. It is also where the tool should save any new output files. When the tool is run in the automated test program, its whole world should be in the `inputs` folder.
-
-toolbox.tool.variant
-inputs/
-config .ini: toolbox.tool.variant.subtest
-
-inputs:
-think of this as a snapshot of all the things you need to run this particular tool
-outputs:
-what does the tool do that i really care about?
+The other item in a test folder is an **empty folder named `inputs`**. This will contain [all the data required](#choosing-good-data) for the tool to run. It is also where the tool should save any new output files. When the tool is run in the automated test program, its whole world should be contained within the `inputs` folder.
 
 
 ## Choosing good data
 
-smallish but representative.
-might be a subset of a "normal" dataset, for example 6 las files from 100. you might have to remake tile indexes or other ancillary inputs to match the subset.
+Good testing data is smallish but representative. The goal is to "exercise" the tool in the way it's most commonly used.
+
+This might be a subset of a "normal" dataset you'd use in production. For example 4 las files from 100. Or perhaps a smaller circuit with a mix of different threat detections. When choosing a subset, it's a good idea to choose adjacent or contiguous pieces.
+
+You might have to remake tile indexes, clipping shapes, or other ancillary inputs to match the subset. That will depend on the tool, as some tools can tolerate "missing" data and others cannot. It's ok if a tool produces a yellow warning when it runs, but the data chosen should allow the tool to run to completion without red error messages (or crashes!).
+
+That data should be copied to the `inputs` folder, and then _not modified_.
 
 
 ## Essential workflow
@@ -69,7 +66,7 @@ might be a subset of a "normal" dataset, for example 6 las files from 100. you m
 
 ### Gather input data
 
-1. You will find each tool's test in a folder within `I:\test\ArcGISPro_VersionTesting\tests`. It will be named `toolbox.alias.default`. Within that folder will be 2 items: a folder named `inputs` and a config .ini file with a name that matches the test folder.
+1. You will find each [tool's test in a folder](#anatomy-of-a-test) within `I:\test\ArcGISPro_VersionTesting\tests`. It will be named `toolbox.alias.default`. Within that folder will be 2 items: a folder named `inputs` and a config .ini file with a name that matches the test folder.
 
     ![test_folder](img/test_folder_01.png)
 
@@ -77,6 +74,9 @@ might be a subset of a "normal" dataset, for example 6 las files from 100. you m
         [Tools/Tests index](tool_test_names.md) contains a table of toolboxes, tool display names, and the test folder name.
 
 1. Any input data (GDBs, shapefiles, las, tifs, txt, csv, xml, dxf, npy, ...) should be copied to `inputs`. You can organize files within `inputs` as you like.
+
+    !!! success ""
+        Think of `inputs` as a snapshot of all the things you need to run this particular tool _just_ before you press the Run button.
 
     ![inputs_folder](img/test_folder_02.png)
     ![inputs_folder](img/test_folder_02a.png)
@@ -99,7 +99,7 @@ might be a subset of a "normal" dataset, for example 6 las files from 100. you m
 1. When the data is setup in `inputs`, open the tool in ArcPro and adjust the tool's parameters as if you were going to run it on the data in `inputs`.
 
     !!! info
-        If you _do_ want to run the tool once to make sure the parameters are correct, please make a temporary **copy** of `inputs` and use that to avoid accidently modifying anything in `inputs`.
+        If you _do_ want to run the tool once to make sure the parameters are correct, please make a **temporary copy** of `inputs` and use that to avoid accidently modifying anything in `inputs`.
 
     ![get_params](img/01_arc_tool_params_blast2dem.png)
 
@@ -118,7 +118,7 @@ might be a subset of a "normal" dataset, for example 6 las files from 100. you m
     ![get_params](img/02_python_to_ini_blast2dem_vsplit.png)
 
     !!! tip
-        The comments above each parameter show the parameter's display name in ArcGIS and its type.
+        The comments in config .ini above each parameter show the parameter's display name in ArcGIS and its type.
 
 1. Copy the parameter values from the python code into the matching item in the config .ini.
 
@@ -137,6 +137,9 @@ might be a subset of a "normal" dataset, for example 6 las files from 100. you m
 
 1. Any newly created output files or modified inputs that are important must be listed one per line . Format the lines as you did for parameters.
 
+    !!! success ""
+        What does the tool do that I really care about?
+
     1. If the item is something in a Geodatabase (eg feature class), list only the geodatabase.
     1. You may list folders (see example in image).
     1. If a tool produces some extra files that really aren't important, you can omit those.
@@ -144,6 +147,8 @@ might be a subset of a "normal" dataset, for example 6 las files from 100. you m
 
     ![config_outputs_section](img/04_outputs_blast2dem.png)
 
+!!! success
+    That's it!   Don't forget to save your changes to the config .ini. 😊
 
 ## Advanced configurations
 
@@ -165,3 +170,9 @@ folders .default -> .something
 | input | |
 | outputs | |
 | alias | a tool's internal name |
+
+## Questions?
+
+If you have questions, please message **Ben Stabley** on the JTree team.
+
+Thank you
