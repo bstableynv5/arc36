@@ -12,7 +12,7 @@ from datetime import timedelta
 from itertools import chain
 from pathlib import Path
 from tempfile import gettempdir
-from typing import Any, Generator, Literal, Optional, Union
+from typing import Any, Generator, Iterable, Literal, Optional, Union
 
 import arcpy
 import formats
@@ -22,16 +22,24 @@ from test import Parameter, Test, make_tests, normalize_toolbox_name, parameter_
 from test_logging import OutputCapture, setup_logger
 
 
+def _toolbox_files(toolboxes_dir: Path) -> Iterable[Path]:
+    return chain(toolboxes_dir.glob("*/*.atbx"), toolboxes_dir.glob("*/*.tbx"))
+
+
+def _config_files(tests_dir: Path) -> Iterable[Path]:
+    return tests_dir.glob("*/*.ini")
+
+
 def find_tests(root: Union[str, Path]) -> list[tuple[Path, str, Test]]:
     root = Path(root)
-    test_configs = root.glob("*/*.ini")
+    test_configs = _config_files(root)
     tests = [(c.absolute(), c.stem, parse_test_ini(c.read_text())) for c in test_configs]
     return tests
 
 
 def find_toolboxes(root: Union[str, Path]) -> list[Test]:
     root = Path(root)  # I:/.../toolboxes/baseline
-    toolboxes = chain(root.glob("*/*.atbx"), root.glob("*/*.tbx"))
+    toolboxes = _toolbox_files(root)
     tests: list[Test] = []
     for toolbox in toolboxes:
         tests.extend(make_tests(toolbox, root))
@@ -220,7 +228,7 @@ class GeneralConfig:
             root = (self.toolboxes_dir / env).absolute()
             log.info(f"Normalizing {env}")
             log.info(f"Root: {root}")
-            toolboxes = chain(root.glob("*/*.atbx"), root.glob("*/*.tbx"))
+            toolboxes = _toolbox_files(root)
             for tb in toolboxes:
                 normalized_name = normalize_toolbox_name(tb)
                 # rename file then file's parent dir
