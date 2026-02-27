@@ -188,12 +188,15 @@ def run_all_tests(
     logger.info("FINISHED ALL")
 
 
-def create_new_tests(toolbox_dir: Path, tests_dir: Path) -> tuple[int, int]:
+def create_new_tests(toolbox_dir: Path, tests_dir: Path, ignore: set[str]) -> tuple[int, int]:
     tests = find_toolboxes(toolbox_dir)  # I:/.../toolboxes/baseline
     tests_dir.mkdir(exist_ok=True)
     count = 0
     for t in tests:
         search_name = t.test_path(tests_dir, "*").stem  # find any variant
+        tool_id = search_name.removesuffix(".*")  # variant glob
+        if tool_id in ignore:
+            continue
         existing_test = any(tests_dir.glob(search_name))
         if not existing_test:
             test_path = t.test_path(tests_dir)
@@ -241,13 +244,17 @@ class GeneralConfig:
 
     def cmd_create_new_tests(self, args: argparse.Namespace):
         scan_dir = self.toolboxes_dir / args.env
+        ignore_tools = set()
+        if args.ignore is not None:
+            ignore_tools = set(Path(args.ignore).read_text().splitlines())
         log = self.get_general_logger()
         log.debug("START CMD_CREATE")
         log.info(f"Scanning {scan_dir}")
         log.info(f"New tests will be created in {self.tests_dir}")
-        count_created, count_total_tools = create_new_tests(scan_dir, self.tests_dir)
-        log.info(f"Found {count_total_tools} total tools")
+        count_created, count_total_tools = create_new_tests(scan_dir, self.tests_dir, ignore_tools)
+        log.info(f"Found   {count_total_tools} total tools")
         log.info(f"Created {count_created} new tests")
+        log.info(f"Ignored {len(ignore_tools)} tools")
         log.debug("END CMD_CREATE")
 
     def cmd_prune_tests(self, args: argparse.Namespace):
@@ -375,11 +382,16 @@ class GeneralConfig:
         ######
         create = subparsers.add_parser("create", help="scans toolboxes and creates test templates")
         create.add_argument(
+            "--ignore",
+            type=str,
+            help="text file listing tools (toolbox.alias) to ignore when creating test template",
+        )
+        create.add_argument(
             "--env",
             type=str,
             choices=["baseline", "target"],
             default="baseline",  # TODO: this is for dev only
-            help="environment toolboxes to scan. always want default.",
+            help="environment toolboxes to scan. always want default",
         )
         create.set_defaults(func=self.cmd_create_new_tests)
 
