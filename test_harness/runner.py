@@ -12,7 +12,7 @@ from datetime import timedelta
 from itertools import chain
 from pathlib import Path
 from tempfile import gettempdir
-from typing import Any, Generator, Literal, Optional, Union
+from typing import Any, Generator, Iterable, Literal, Optional, Union
 
 import arcpy
 import formats
@@ -22,16 +22,24 @@ from test import Parameter, Test, make_tests, normalize_toolbox_name, parameter_
 from test_logging import OutputCapture, setup_logger
 
 
+def _toolbox_files(toolboxes_dir: Path) -> Iterable[Path]:
+    return chain(toolboxes_dir.glob("*/*.atbx"), toolboxes_dir.glob("*/*.tbx"))
+
+
+def _config_files(tests_dir: Path) -> Iterable[Path]:
+    return tests_dir.glob("*/*.ini")
+
+
 def find_tests(root: Union[str, Path]) -> list[tuple[Path, str, Test]]:
     root = Path(root)
-    test_configs = root.glob("*/*.ini")
+    test_configs = _config_files(root)
     tests = [(c.absolute(), c.stem, parse_test_ini(c.read_text())) for c in test_configs]
     return tests
 
 
 def find_toolboxes(root: Union[str, Path]) -> list[Test]:
     root = Path(root)  # I:/.../toolboxes/baseline
-    toolboxes = chain(root.glob("*/*.atbx"), root.glob("*/*.tbx"))
+    toolboxes = _toolbox_files(root)
     tests: list[Test] = []
     for toolbox in toolboxes:
         tests.extend(make_tests(toolbox, root))
@@ -58,7 +66,7 @@ def run_single_test(config: 'GeneralConfig', test_path: Path, run_id: int, env: 
         test = parse_test_ini(test_path.read_text())
         # print("PARSED TEST")
         test_logfile = test_path.parent / "logs" / formats.single_test_logfile(run_id, env, test_id)
-        logger = setup_logger(test_id, test_logfile)
+        logger = setup_logger(logging.getLogger(test_id), test_logfile)
 
         toolbox_path = config.toolboxes_dir / env / test.toolbox  # test.toolbox is relative
 
@@ -143,7 +151,7 @@ def run_all_tests(
     env_python = config.environments[env]
     runner = config.root_dir / "temp_harness" / "runner.py"
 
-    logger = setup_logger(f"run_{run_id}", run_logfile)
+    logger = setup_logger(logging.getLogger(f"run_{run_id}"), run_logfile)
     logger.info("RUN ALL")
     logger.debug(f"{env=}")
     logger.debug(f"{env_python=}")
@@ -180,12 +188,15 @@ def run_all_tests(
     logger.info("FINISHED ALL")
 
 
-def create_new_tests(toolbox_dir: Path, tests_dir: Path) -> int:
+def create_new_tests(toolbox_dir: Path, tests_dir: Path, ignore: set[str]) -> tuple[int, int]:
     tests = find_toolboxes(toolbox_dir)  # I:/.../toolboxes/baseline
     tests_dir.mkdir(exist_ok=True)
     count = 0
     for t in tests:
         search_name = t.test_path(tests_dir, "*").stem  # find any variant
+        tool_id = search_name.removesuffix(".*")  # variant glob
+        if tool_id in ignore:
+            continue
         existing_test = any(tests_dir.glob(search_name))
         if not existing_test:
             test_path = t.test_path(tests_dir)
@@ -193,7 +204,7 @@ def create_new_tests(toolbox_dir: Path, tests_dir: Path) -> int:
             test_path.write_text(t.terrible_ini())
             (test_path.parent / "inputs").mkdir(exist_ok=True)
             count += 1
-    return count
+    return count, len(tests)
 
 
 @dataclass(frozen=True)
@@ -209,7 +220,8 @@ class GeneralConfig:
     database: Path  # sqlite database
 
     def get_general_logger(self) -> logging.Logger:
-        return setup_logger("general", self.logs_dir / "general.log", add_timestamp=False)
+        logfile = self.logs_dir / "general.log"
+        return setup_logger(logging.getLogger("general"), logfile, add_timestamp=False)
 
     def cmd_normalize_toolboxes(self, args: argparse.Namespace):
         """convert folder and atbx(tbx) names to 'normalized' versions so that
@@ -220,7 +232,7 @@ class GeneralConfig:
             root = (self.toolboxes_dir / env).absolute()
             log.info(f"Normalizing {env}")
             log.info(f"Root: {root}")
-            toolboxes = chain(root.glob("*/*.atbx"), root.glob("*/*.tbx"))
+            toolboxes = _toolbox_files(root)
             for tb in toolboxes:
                 normalized_name = normalize_toolbox_name(tb)
                 # rename file then file's parent dir
@@ -232,13 +244,34 @@ class GeneralConfig:
 
     def cmd_create_new_tests(self, args: argparse.Namespace):
         scan_dir = self.toolboxes_dir / args.env
+        ignore_tools = set()
+        if args.ignore is not None:
+            ignore_tools = set(Path(args.ignore).read_text().splitlines())
         log = self.get_general_logger()
         log.debug("START CMD_CREATE")
         log.info(f"Scanning {scan_dir}")
-        testout_dir = Path("arctests")  # TODO for dev! r"I:\test\ArcGISPro_VersionTesting\tests"
-        count_created = create_new_tests(scan_dir, testout_dir)
+        log.info(f"New tests will be created in {self.tests_dir}")
+        count_created, count_total_tools = create_new_tests(scan_dir, self.tests_dir, ignore_tools)
+        log.info(f"Found   {count_total_tools} total tools")
         log.info(f"Created {count_created} new tests")
+        log.info(f"Ignored {len(ignore_tools)} tools")
         log.debug("END CMD_CREATE")
+
+    def cmd_prune_tests(self, args: argparse.Namespace):
+        log = self.get_general_logger()
+        log.debug("START CMD_PRUNE")
+        log.info(f"Scanning {self.tests_dir}")
+        count = 0
+        for item in self.tests_dir.iterdir():
+            if not item.is_dir():
+                continue
+            inputs = item / "inputs"
+            if len(list(inputs.iterdir())) == 0:
+                log.info(f"Removing {item.name}")
+                shutil.rmtree(str(item))
+                count += 1
+        log.info(f"Removed {count} tests")
+        log.debug("END CMD_PRUNE")
 
     def cmd_run_single_test(self, args: argparse.Namespace):
         run_single_test(self, Path(args.path).absolute(), args.run_id, args.env)
@@ -281,6 +314,7 @@ class GeneralConfig:
         parser = argparse.ArgumentParser()
         subparsers = parser.add_subparsers(dest="command", help="Subcommands")
 
+        # run #############################################################
         ######
         run_one = subparsers.add_parser("run_one", help="run a single test")
         run_one.add_argument(
@@ -312,23 +346,7 @@ class GeneralConfig:
         )
         run_all.set_defaults(func=self.cmd_run_all_tests)
 
-        ######
-        tbnormalize = subparsers.add_parser(
-            "tbnormalize", help="normalizes toolbox folders and atbx filenames for all envs"
-        )
-        tbnormalize.set_defaults(func=self.cmd_normalize_toolboxes)
-
-        ######
-        create = subparsers.add_parser("create", help="scans toolboxes and creates test templates")
-        create.add_argument(
-            "--env",
-            type=str,
-            choices=["baseline", "target"],
-            default="baseline",  # TODO: this is for dev only
-            help="environment toolboxes to scan. always want default.",
-        )
-        create.set_defaults(func=self.cmd_create_new_tests)
-
+        # schedule #############################################################
         ######
         enqueue = subparsers.add_parser("enqueue", help="add new test runs in waiting status")
         enqueue.add_argument(
@@ -353,6 +371,33 @@ class GeneralConfig:
             default="report.html",
             help="path to write report",
         )
+
+        # manage ###############################################################
+        ######
+        tbnormalize = subparsers.add_parser(
+            "tbnormalize", help="normalizes toolbox folders and atbx filenames for all envs"
+        )
+        tbnormalize.set_defaults(func=self.cmd_normalize_toolboxes)
+
+        ######
+        create = subparsers.add_parser("create", help="scans toolboxes and creates test templates")
+        create.add_argument(
+            "--ignore",
+            type=str,
+            help="text file listing tools (toolbox.alias) to ignore when creating test template",
+        )
+        create.add_argument(
+            "--env",
+            type=str,
+            choices=["baseline", "target"],
+            default="baseline",  # TODO: this is for dev only
+            help="environment toolboxes to scan. always want default",
+        )
+        create.set_defaults(func=self.cmd_create_new_tests)
+
+        ######
+        prune = subparsers.add_parser("prune", help="remove tests with no input files")
+        prune.set_defaults(func=self.cmd_prune_tests)
 
         return parser
 

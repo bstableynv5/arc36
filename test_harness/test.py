@@ -164,6 +164,9 @@ def make_tests(toolbox_path: Union[str, Path], relative_to: Optional[Path] = Non
 
 
 def parse_test_ini(contents: str) -> Test:
+    def _strip(s: str) -> str:
+        return s.strip(" \'\"")
+
     parser = configparser.ConfigParser(allow_no_value=True)
     parser.optionxform = str  # type: ignore # preserve case of ini keys. default converts to lower...
     parser.read_string(contents)
@@ -172,6 +175,6 @@ def parse_test_ini(contents: str) -> Test:
         alias=parser["test"]["alias"],
         description=parser["test"]["description"],
         run_local=parser.getboolean("test", "run_local", fallback=True),
-        parameters=[Parameter(name=k, value=v) for k, v in parser["parameters"].items()],
-        outputs=[str(k).strip(" '\"") for k, _ in parser["outputs"].items()],
+        parameters=[Parameter(name=k, value=_strip(v)) for k, v in parser["parameters"].items()],
+        outputs=[_strip(k) for k, _ in parser["outputs"].items()],
     )
