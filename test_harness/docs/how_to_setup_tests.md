@@ -49,12 +49,14 @@ might be a subset of a "normal" dataset, for example 6 las files from 100. you m
 
     ![folder_conn](img/add_folder_connection.png)
 
+<!--
 1. You'll need to see the tool's "alias", which is the tool's internal name that ArcGIS uses. The alias is used to refer to the tool in most subsequent steps.
     1. Right click on the tool and choose Properties.
     2. The alias is shown in the "Name" field of the Properties dialog.
 
     ![alias1](img/toolproperties_01.png)
     ![alias2](img/toolproperties_02.png)
+-->
 
 ### Gather input data
 
