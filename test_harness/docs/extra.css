@@ -1,6 +1,7 @@
-p,
-ul,
-ol {
+/* goofy pseudo-classes prevent styles from affecting admonitions */
+p:not([class]),
+ul:not([class]),
+ol:not([class]) {
     margin-left: 1rem !important;
 }
 
@@ -24,8 +25,8 @@ h5 {
     margin-bottom: 0.5em !important;
 }
 
-p,
-li {
+p:not([class]),
+li:not([class]) {
     margin-bottom: 0.5em !important;
     margin-top: 0.25em !important;
 
