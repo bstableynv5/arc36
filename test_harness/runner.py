@@ -250,6 +250,22 @@ class GeneralConfig:
         log.info(f"Created {count_created} new tests")
         log.debug("END CMD_CREATE")
 
+    def cmd_prune_tests(self, args: argparse.Namespace):
+        log = self.get_general_logger()
+        log.debug("START CMD_PRUNE")
+        log.info(f"Scanning {self.tests_dir}")
+        count = 0
+        for item in self.tests_dir.iterdir():
+            if not item.is_dir():
+                continue
+            inputs = item / "inputs"
+            if len(list(inputs.iterdir())) == 0:
+                log.info(f"Removing {item.name}")
+                shutil.rmtree(str(item))
+                count += 1
+        log.info(f"Removed {count} tests")
+        log.debug("END CMD_PRUNE")
+
     def cmd_run_single_test(self, args: argparse.Namespace):
         run_single_test(self, Path(args.path).absolute(), args.run_id, args.env)
 
@@ -291,6 +307,7 @@ class GeneralConfig:
         parser = argparse.ArgumentParser()
         subparsers = parser.add_subparsers(dest="command", help="Subcommands")
 
+        # run #############################################################
         ######
         run_one = subparsers.add_parser("run_one", help="run a single test")
         run_one.add_argument(
@@ -322,23 +339,7 @@ class GeneralConfig:
         )
         run_all.set_defaults(func=self.cmd_run_all_tests)
 
-        ######
-        tbnormalize = subparsers.add_parser(
-            "tbnormalize", help="normalizes toolbox folders and atbx filenames for all envs"
-        )
-        tbnormalize.set_defaults(func=self.cmd_normalize_toolboxes)
-
-        ######
-        create = subparsers.add_parser("create", help="scans toolboxes and creates test templates")
-        create.add_argument(
-            "--env",
-            type=str,
-            choices=["baseline", "target"],
-            default="baseline",  # TODO: this is for dev only
-            help="environment toolboxes to scan. always want default.",
-        )
-        create.set_defaults(func=self.cmd_create_new_tests)
-
+        # schedule #############################################################
         ######
         enqueue = subparsers.add_parser("enqueue", help="add new test runs in waiting status")
         enqueue.add_argument(
@@ -363,6 +364,28 @@ class GeneralConfig:
             default="report.html",
             help="path to write report",
         )
+
+        # manage ###############################################################
+        ######
+        tbnormalize = subparsers.add_parser(
+            "tbnormalize", help="normalizes toolbox folders and atbx filenames for all envs"
+        )
+        tbnormalize.set_defaults(func=self.cmd_normalize_toolboxes)
+
+        ######
+        create = subparsers.add_parser("create", help="scans toolboxes and creates test templates")
+        create.add_argument(
+            "--env",
+            type=str,
+            choices=["baseline", "target"],
+            default="baseline",  # TODO: this is for dev only
+            help="environment toolboxes to scan. always want default.",
+        )
+        create.set_defaults(func=self.cmd_create_new_tests)
+
+        ######
+        prune = subparsers.add_parser("prune", help="remove tests with no input files")
+        prune.set_defaults(func=self.cmd_prune_tests)
 
         return parser
 
