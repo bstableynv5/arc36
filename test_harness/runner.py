@@ -66,7 +66,7 @@ def run_single_test(config: 'GeneralConfig', test_path: Path, run_id: int, env: 
         test = parse_test_ini(test_path.read_text())
         # print("PARSED TEST")
         test_logfile = test_path.parent / "logs" / formats.single_test_logfile(run_id, env, test_id)
-        logger = setup_logger(test_id, test_logfile)
+        logger = setup_logger(logging.getLogger(test_id), test_logfile)
 
         toolbox_path = config.toolboxes_dir / env / test.toolbox  # test.toolbox is relative
 
@@ -151,7 +151,7 @@ def run_all_tests(
     env_python = config.environments[env]
     runner = config.root_dir / "temp_harness" / "runner.py"
 
-    logger = setup_logger(f"run_{run_id}", run_logfile)
+    logger = setup_logger(logging.getLogger(f"run_{run_id}"), run_logfile)
     logger.info("RUN ALL")
     logger.debug(f"{env=}")
     logger.debug(f"{env_python=}")
@@ -217,7 +217,8 @@ class GeneralConfig:
     database: Path  # sqlite database
 
     def get_general_logger(self) -> logging.Logger:
-        return setup_logger("general", self.logs_dir / "general.log", add_timestamp=False)
+        logfile = self.logs_dir / "general.log"
+        return setup_logger(logging.getLogger("general"), logfile, add_timestamp=False)
 
     def cmd_normalize_toolboxes(self, args: argparse.Namespace):
         """convert folder and atbx(tbx) names to 'normalized' versions so that

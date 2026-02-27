@@ -47,15 +47,16 @@ class OutputCapture:
 
 
 def setup_logger(
-    name: str, log_file: Union[Path, str], add_timestamp: bool = True
+    logger: logging.Logger, log_file: Union[Path, str], add_timestamp: bool = True
 ) -> logging.Logger:
-    log_file = Path(log_file)
+    """Configures the logger passed and returns it. Does not create new loggers.
+    Python logging module loggers are singletons based on the logger's "name".
+    """
 
-    logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
-
     formatter = logging.Formatter("%(asctime)s:%(levelname)5s: %(message)s", datefmt=PSEUDO_ISO_FMT)
 
+    log_file = Path(log_file)
     log_file.parent.mkdir(exist_ok=True, parents=True)
     if add_timestamp:
         datetag = f"_{dt.now():{EXTRA_PSEUDO_ISO_FMT}}"
