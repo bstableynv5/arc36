@@ -188,7 +188,7 @@ def run_all_tests(
     logger.info("FINISHED ALL")
 
 
-def create_new_tests(toolbox_dir: Path, tests_dir: Path) -> int:
+def create_new_tests(toolbox_dir: Path, tests_dir: Path) -> tuple[int, int]:
     tests = find_toolboxes(toolbox_dir)  # I:/.../toolboxes/baseline
     tests_dir.mkdir(exist_ok=True)
     count = 0
@@ -201,7 +201,7 @@ def create_new_tests(toolbox_dir: Path, tests_dir: Path) -> int:
             test_path.write_text(t.terrible_ini())
             (test_path.parent / "inputs").mkdir(exist_ok=True)
             count += 1
-    return count
+    return count, len(tests)
 
 
 @dataclass(frozen=True)
@@ -244,8 +244,9 @@ class GeneralConfig:
         log = self.get_general_logger()
         log.debug("START CMD_CREATE")
         log.info(f"Scanning {scan_dir}")
-        testout_dir = Path("arctests")  # TODO for dev! r"I:\test\ArcGISPro_VersionTesting\tests"
-        count_created = create_new_tests(scan_dir, testout_dir)
+        log.info(f"New tests will be created in {self.tests_dir}")
+        count_created, count_total_tools = create_new_tests(scan_dir, self.tests_dir)
+        log.info(f"Found {count_total_tools} total tools")
         log.info(f"Created {count_created} new tests")
         log.debug("END CMD_CREATE")
 

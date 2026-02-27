@@ -46,6 +46,15 @@ class OutputCapture:
         OutputCapture._orig_error(message)
 
 
+def get_null_logger() -> logging.Logger:
+    log = logging.getLogger("null_logger")
+    if log.hasHandlers():
+        return log
+    log.addHandler(logging.NullHandler())
+    log.setLevel(logging.DEBUG)
+    return log
+
+
 def setup_logger(
     logger: logging.Logger, log_file: Union[Path, str], add_timestamp: bool = True
 ) -> logging.Logger:
