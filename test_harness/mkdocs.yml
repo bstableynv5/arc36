@@ -9,7 +9,8 @@ site_dir: docs_render
 use_directory_urls: false
 
 nav:
-  - 'Setting up tool tests': 'how_to_setup_tests.md'
+  - "Setting up tool tests": "how_to_setup_tests.md"
+  - "Tools/Tests index": "tool_test_names.md"
 
 theme:
   name: material
