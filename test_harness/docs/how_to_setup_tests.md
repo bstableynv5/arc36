@@ -21,7 +21,7 @@ This automation requires that each tool has some configuration describing the in
 
 Each tool test is a folder containing a _configuration file_ and _input data_.
 
-![test_folder](img/test_folder_01.png)
+![test_folder](img/test_folder_01_annotated.png)
 
 The **test folder** will be named according to the scheme `toolbox_name.tool_alias.variant`. For example `x.y.default`. The _variant_ portion will be `default` for all initial test folders. The purpose of _variant_ is when you want to test the same tool multiple times _with different input data_.
 
@@ -68,7 +68,7 @@ That data should be copied to the `inputs` folder, and then _not modified_.
 
 1. You will find each [tool's test in a folder](#anatomy-of-a-test) within `I:\test\ArcGISPro_VersionTesting\tests`. It will be named `toolbox.alias.default`. Within that folder will be 2 items: a folder named `inputs` and a config .ini file with a name that matches the test folder.
 
-    ![test_folder](img/test_folder_01.png)
+    ![test_folder](img/test_folder_01_annotated.png)
 
     !!! tip
         [Tools/Tests index](tool_test_names.md) contains a table of toolboxes, tool display names, and the test folder name.
@@ -92,7 +92,7 @@ That data should be copied to the `inputs` folder, and then _not modified_.
 
 1. You can optionally add a short `description` about this specific tool test setup.
 
-    ![config_test_section](img/03_param_tweaks_blast2dem_testsection.png)
+    ![config_test_section](img/03_param_tweaks_blast2dem_testsection_annotated.png)
 
 #### [parameters] section
 
@@ -101,7 +101,7 @@ That data should be copied to the `inputs` folder, and then _not modified_.
     !!! info
         If you _do_ want to run the tool once to make sure the parameters are correct, please make a **temporary copy** of `inputs` and use that to avoid accidently modifying anything in `inputs`.
 
-    ![get_params](img/01_arc_tool_params_blast2dem.png)
+    ![get_params](img/01_arc_tool_params_blast2dem_annotated.png)
 
 1. Any newly created outputs files should _also_ be saved to the `inputs` folder.
 
@@ -115,7 +115,7 @@ That data should be copied to the `inputs` folder, and then _not modified_.
 
     You'll notice that the text from _Copy Python Command_ has a list of parameters for the tool that match the list in the `[parameters]` section of the config .ini.
 
-    ![get_params](img/02_python_to_ini_blast2dem_vsplit.png)
+    ![get_params](img/02_python_to_ini_blast2dem_vsplit_annotated.png)
 
     !!! tip
         The comments in config .ini above each parameter show the parameter's display name in ArcGIS and its type.
@@ -128,8 +128,8 @@ That data should be copied to the `inputs` folder, and then _not modified_.
     1. Any of the files from `inputs` should be shortened to start with `inputs\`. For example, `I:\test\ArcGISPro_VersionTesting\tests\htcondor_tools.blast2demrasters.default\inputs\tileindex.gdb\tileindex` would become `inputs\tileindex.gdb\tileindex`.
     1. Parameters with values `None`, `""`, or `"#"` can be ignored and left blank in the config .ini.
 
-    ![get_params](img/02_python_to_ini_blast2dem_vsplit_a.png)
-    ![get_params](img/03_param_tweaks_blast2dem.png)
+    ![get_params](img/02_python_to_ini_blast2dem_vsplit_a_annotated.png)
+    ![get_params](img/03_param_tweaks_blast2dem_annotated.png)
 
 
 
@@ -145,7 +145,7 @@ That data should be copied to the `inputs` folder, and then _not modified_.
     1. If a tool produces some extra files that really aren't important, you can omit those.
     1. If the tool doesn't produce anything or modify anything, this section can be left empty.
 
-    ![config_outputs_section](img/04_outputs_blast2dem.png)
+    ![config_outputs_section](img/04_outputs_blast2dem_annotated.png)
 
 !!! success
     That's it!   Don't forget to save your changes to the config .ini. 😊
@@ -156,6 +156,8 @@ stuff about variants:
 subtest ini .default -> .default.cfg1, .default.cfg2
 folders .default -> .something
 
+![folder_breakdown](img/test_id_name_breakdown_folder.png)
+![config_breakdown](img/test_id_name_breakdown_config.png)
 
 ## Glossary
 
@@ -164,10 +166,10 @@ folders .default -> .something
 | baseline | anything related to the _current_ version of ArcGIS. |
 | target | anything related to the _new_ version of ArcGIS. |
 | toolbox | a collection of geoprocessing tools, usually contained in a folder with an atbx or tbx file, scripts, and other additional files. |
-| tool | TODO a single item within a toolbox, usually corresponding to a script |
+| tool | a single item within a toolbox, usually corresponding to a script. |
 | test | a folder containing an `inputs` folder and config .ini file (`toolbox.alias.default.ini`) for an individual tool. | |
-| configuration file | |
-| input | |
+| configuration file | aka config .ini, is a text file specifying vital information for a tool test such as parameter values and expected outputs. |
+| inputs | |
 | outputs | |
 | alias | a tool's internal name |
 
