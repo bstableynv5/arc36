@@ -16,6 +16,13 @@ This automation requires that each tool has some configuration describing the in
 | toolboxes | I:\test\ArcGISPro_VersionTesting\toolboxes\baseline |
 | tool test folders | I:\test\ArcGISPro_VersionTesting\tests |
 
+#### Summary
+
+For each tool...
+
+1. [add input data](#gather-input-data)
+2. [configure the tool parameters](#setup-tool-test-configuration).
+
 
 ### Anatomy of a test
 
@@ -23,7 +30,7 @@ Each tool test is a folder containing a _configuration file_ and _input data_.
 
 ![test_folder](img/test_folder_01_annotated.png)
 
-The **test folder** will be named according to the scheme `toolbox_name.tool_alias.variant`. For example `x.y.default`. The _variant_ portion will be `default` for all initial test folders. The purpose of _variant_ is when you want to test the same tool multiple times _with different input data_.
+The **test folder** will be named according to the scheme `toolbox_name.tool_alias.variant`. For example `x.y.default`. The _variant_ portion will be `default` for all initial test folders. The purpose of a _variant_ is when you want to test the same tool multiple times _with different input data_.
 
 Within the folder is a **configuration file** (refered to as "config .ini"). This file will be named the same as the test folder, for example `x.y.default.ini`. You can create multiple configuration files in the same test folder if you want to run the same tool multiple times _on the same input data_ with different non-data parameters. This is a _subtest_.
 
@@ -152,12 +159,34 @@ That data should be copied to the `inputs` folder, and then _not modified_.
 
 ## Advanced configurations
 
-stuff about variants:
-subtest ini .default -> .default.cfg1, .default.cfg2
-folders .default -> .something
+As alluded to in [Anatomy of a test](#anatomy-of-a-test), the same tool can be tested multiple times with:
+
+1. Different input data -- a test _variant_.
+2. The same input data but different parameters -- a test _subtest_.
+
+The test folder name and config .ini file within it have a particular name schema that identifies the tool test. The folder and file names contain 3+ parts separated by `.` (period). The first two parts identify the toolbox and tool, respectively. The third part identifies the test _variant_ and an optional fourth parts identifies a _subtest_.
 
 ![folder_breakdown](img/test_id_name_breakdown_folder.png)
 ![config_breakdown](img/test_id_name_breakdown_config.png)
+
+All the tests are given a variant ID of `default` and no subtests when empty template is created. You can use this unless you want to create additional variants or subtests.
+
+The recommended way of **creating a new variant** is to make a copy of one of the tool's test folders (such as `default`), then rename the variant portion of the folder and config .ini filenames, and setup test inputs and parameters as normal.
+
+The recommended way of **creating a new subtest** is to configure the config .ini for a test first. Then copy the config .ini, rename the subtest portion of the copy's filename, and modify its parameters as necessary.
+
+!!! note
+    When naming variants and subtests, please choose lowercase letters and numbers. An underscore can be used, but no other punctuation or other special characters please.
+
+Using the `htcondor_tools.blast2demrasters` example again, a new variant was created in `htcondor_tools.blast2demrasters.grounds`. The las input for `default` has thinned mkps instead of true grounds, so a bare earth and slope rasters cannot be run on it. The las for the `grounds` variant has grounds (and is from a different project). In addition, the `grounds` test variant has 3 subtests: `bareearth`, `highesthit`, and `slope`.
+
+![grounds_folder](img/test_folder_02_variant_subtests_a.png)
+![grounds_catalog](img/test_folder_02_variant_subtests_b.png)
+
+The 3 config .ini files with differences highlighted are shown below. `inputs/raster` was used as to save the output rasters in these 3 subtests, but it would also possible for each subtests to save outputs to separate folders (ex `inputs/out_be` and `inputs/slope`). However, when run each subtest gets its own copy of the entire `inputs` folder, so this isn't necessary.
+
+![grounds_subtests](img/subtests_sidebyside_annotated.png)
+
 
 ## Glossary
 
@@ -167,11 +196,13 @@ folders .default -> .something
 | target | anything related to the _new_ version of ArcGIS. |
 | toolbox | a collection of geoprocessing tools, usually contained in a folder with an atbx or tbx file, scripts, and other additional files. |
 | tool | a single item within a toolbox, usually corresponding to a script. |
-| test | a folder containing an `inputs` folder and config .ini file (`toolbox.alias.default.ini`) for an individual tool. | |
+| alias | a tool's internal name |
+| test | a folder containing an `inputs` folder and config .ini file (`toolbox.tool.default.ini`) for an individual tool. | |
 | configuration file | aka config .ini, is a text file specifying vital information for a tool test such as parameter values and expected outputs. |
+| variant | a test with a set of input data. Different variants for the same tool test have different input data. |
+| subtest | multiple test configuration files for the same input data but different parameters |
 | inputs | |
 | outputs | |
-| alias | a tool's internal name |
 
 ## Questions?
 
