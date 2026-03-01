@@ -39,6 +39,11 @@ See [Advanced configurations](#advanced-configurations) for more information abo
 The other item in a test folder is an **empty folder named `inputs`**. This will contain [all the data required](#choosing-good-data) for the tool to run. It is also where the tool should save any new output files. When the tool is run in the automated test program, its whole world should be contained within the `inputs` folder.
 
 
+### What happens with a test is run?
+
+JTree will use a testing program to schedule all the tests to be run as a batch in both ArcGIS Pro v3.1 and v3.6. For each test, the _entire_ `inputs` folder is copied to a temporary working folder, the tool is run using the parameters supplied in the config .ini, and the outputs listed in the config .ini are copied to a fresh permanent folder. When both versions of ArcGIS Pro have finished, the listed outputs of both versions will be compared to ensure their data contents are the same. Finally, a report will be generated summarizing what tests passed and failed.
+
+
 ## Choosing good data
 
 Good testing data is smallish but representative. The goal is to "exercise" the tool in the way it's most commonly used.
