@@ -30,9 +30,9 @@ Each tool test is a folder containing a _configuration file_ and _input data_.
 
 ![test_folder](img/test_folder_01_annotated.png)
 
-The **test folder** will be named according to the scheme `toolbox_name.tool_alias.variant`. For example `x.y.default`. The _variant_ portion will be `default` for all initial test folders. The purpose of a _variant_ is when you want to test the same tool multiple times _with different input data_.
+The **test folder** will be named according to the scheme `toolbox_name.tool_alias.variant`. For example `htcondor_tools.blast2demrasters.default`. The _variant_ portion will be `default` for all initial test folders. The purpose of a _variant_ is when you want to test the same tool multiple times _with different input data_.
 
-Within the folder is a **configuration file** (refered to as "config .ini"). This file will be named the same as the test folder, for example `x.y.default.ini`. You can create multiple configuration files in the same test folder if you want to run the same tool multiple times _on the same input data_ with different non-data parameters. This is a _subtest_.
+Within the folder is a **configuration file** (refered to as "config .ini"). This file will be named the same as the test folder, for example `htcondor_tools.blast2demrasters.default.ini`. You can create multiple configuration files in the same test folder if you want to run the same tool multiple times _on the same input data_ with different non-data parameters. This is a _subtest_.
 
 See [Advanced configurations](#advanced-configurations) for more information about setting up test variants and subtests.
 
@@ -42,6 +42,8 @@ The other item in a test folder is an **empty folder named `inputs`**. This will
 ### What happens with a test is run?
 
 JTree will use a testing program to schedule all the tests to be run as a batch in both ArcGIS Pro v3.1 and v3.6. For each test, the _entire_ `inputs` folder is copied to a temporary working folder, the tool is run using the parameters supplied in the config .ini, and the outputs listed in the config .ini are copied to a fresh permanent folder. When both versions of ArcGIS Pro have finished, the listed outputs of both versions will be compared to ensure their data contents are the same. Finally, a report will be generated summarizing what tests passed and failed.
+
+This mechanism allows each tool test to be completely independent of others. It also preserves the input data across multiple runs since the contents of `inputs` is not operated on directly.
 
 
 ## Choosing good data
@@ -78,7 +80,7 @@ That data should be copied to the `inputs` folder, and then _not modified_.
 
 ### Gather input data
 
-1. You will find each [tool's test in a folder](#anatomy-of-a-test) within `I:\test\ArcGISPro_VersionTesting\tests`. It will be named `toolbox.alias.default`. Within that folder will be 2 items: a folder named `inputs` and a config .ini file with a name that matches the test folder.
+1. You will find each [tool's test in a folder](#anatomy-of-a-test) within `I:\test\ArcGISPro_VersionTesting\tests`. It will be named like `toolbox_name.tool_alias.default`. Within that folder will be 2 items: a folder named `inputs` and a config .ini file with a name that matches the test folder.
 
     ![test_folder](img/test_folder_01_annotated.png)
 
@@ -123,7 +125,7 @@ That data should be copied to the `inputs` folder, and then _not modified_.
     
     ![get_params](img/01a_arc_tool_params_blast2dem.png)
 
-1. Paste this into a blank Notepad/Notepad++ or somewhere else temporarily.
+1. Paste this into a blank Notepad++ or somewhere else temporarily.
 
     You'll notice that the text from _Copy Python Command_ has a list of parameters for the tool that match the list in the `[parameters]` section of the config .ini.
 
@@ -162,6 +164,10 @@ That data should be copied to the `inputs` folder, and then _not modified_.
 !!! success
     That's it!   Don't forget to save your changes to the config .ini. 😊
 
+### Tools that run in sequence
+
+Some tools are meant to run in sequence as part of a workflow, and they often modify one or more feature classes at each step. When setting up these tools, you may want to start with a single smallish test input dataset for the first tool of the series in some separate temporary working folder. Make a copy of this working folder for `inputs` just before you're ready to press the Run button in ArcGIS. The contents of each tool's `inputs` should be a snapshot at that point in the sequence.
+
 ## Advanced configurations
 
 As alluded to in [Anatomy of a test](#anatomy-of-a-test), the same tool can be tested multiple times with:
@@ -191,6 +197,11 @@ Using the `htcondor_tools.blast2demrasters` example again, a new variant was cre
 The 3 config .ini files with differences highlighted are shown below. `inputs/raster` was used as to save the output rasters in these 3 subtests, but it would also possible for each subtests to save outputs to separate folders (ex `inputs/out_be` and `inputs/slope`). However, when run each subtest gets its own copy of the entire `inputs` folder, so this isn't necessary.
 
 ![grounds_subtests](img/subtests_sidebyside_annotated.png)
+
+
+## Known limitations
+
+- The automated test running system can only accept Feature Classes, not Feature _Layers_. As such, tools that **require** a selection of features will not work.
 
 
 ## Glossary
