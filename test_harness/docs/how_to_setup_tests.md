@@ -1,4 +1,4 @@
-# How to setup tool tests for ArcPro v3.1 ⇨ v3.6
+# How to setup tool tests for ArcPro v3.1 ⇨ v3.6 <span style='font-size:0.7rem;float:right'>version 1</span>
 
 ## Overview
 
@@ -9,19 +9,19 @@ This automation requires that each tool has some configuration describing the in
 !!! success ""
     Your task, as the expert in the tool's usual operation and data, is to prepare this input and configuration. You will not be required to run the tools over and over as JTree addresses issues.
 
+#### Summary
+
+For each tool you will help setup for testing...
+
+1. [add input data](#gather-input-data)
+2. [configure the tool parameters](#setup-tool-test-configuration).
+
 #### Important folders
 
 | Name | Path |
 | ---  | --- |
 | toolboxes | I:\test\ArcGISPro_VersionTesting\toolboxes\baseline |
 | tool test folders | I:\test\ArcGISPro_VersionTesting\tests |
-
-#### Summary
-
-For each tool...
-
-1. [add input data](#gather-input-data)
-2. [configure the tool parameters](#setup-tool-test-configuration).
 
 
 ### Anatomy of a test
@@ -65,7 +65,7 @@ That data should be copied to the `inputs` folder, and then _not modified_.
 
 1. Add the toolboxes from `I:\test\ArcGISPro_VersionTesting\toolboxes\baseline` to your project's Catalog. 
 
-    You can drag-and-drop from the toolboxes folder or use Add Folder Connection in Catalog. This is the same as you'd do normally when using production toolboxes in ArcGIS, but they're already unzipped into their home. You don't need to copy them to your workstation.
+    You can drag-and-drop toolbox folders from the `baseline` folder or use Add Folder Connection in Catalog. This is the same as you'd do normally when using production toolboxes in ArcGIS, but they're already unzipped into their home. You don't need to copy them to your workstation.
 
     ![folder_conn](img/add_folder_connection.png)
 
@@ -180,7 +180,7 @@ The test folder name and config .ini file within it have a particular name schem
 ![folder_breakdown](img/test_id_name_breakdown_folder.png)
 ![config_breakdown](img/test_id_name_breakdown_config.png)
 
-All the tests are given a variant ID of `default` and no subtests when empty template is created. You can use this unless you want to create additional variants or subtests.
+All the tests are given a variant ID of `default` and no subtests when an empty template is created. You can use this unless you want to create additional variants or subtests.
 
 The recommended way of **creating a new variant** is to make a copy of one of the tool's test folders (such as `default`), then rename the variant portion of the folder and config .ini filenames, and setup test inputs and parameters as normal.
 
@@ -217,8 +217,8 @@ The 3 config .ini files with differences highlighted are shown below. `inputs/ra
 | configuration file | aka config .ini, is a text file specifying vital information for a tool test such as parameter values and expected outputs. |
 | variant | a test with a set of input data. Different variants for the same tool test have different input data. |
 | subtest | multiple test configuration files for the same input data but different parameters |
-| inputs | |
-| outputs | |
+| inputs | data files required to run a tool |
+| outputs | data files produced or modified by a tool |
 
 ## Questions?
 
