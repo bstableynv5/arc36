@@ -1,3 +1,8 @@
+"""
+Code involving accessing an sqlite database to maintain run and individual
+test status.
+"""
+
 from itertools import product
 import sqlite3
 from contextlib import closing
@@ -11,6 +16,9 @@ from typing import Any, Generator, Iterable, Literal, Optional, Union
 # keep multiple computers from writing to the sqlite db simultaneously
 # using super janky and probably-wont-work "lock file" to attempt to
 class Lockfile:
+    """A context manager that attempts to use the existence of a file
+    as a means of synchronization across multiple PCs."""
+
     def __init__(self, file: Union[str, Path]) -> None:
         self._lockfile = Path(file).absolute()
 
@@ -24,14 +32,28 @@ class Lockfile:
 
 
 class DB:
+    """Access methods for the test run data."""
+
     def __init__(self, sqlite_file: str) -> None:
+        """Set up the DB.
+
+        Args:
+            sqlite_file (str): Path to the sqlite database.
+        """
         self._sqlite_file = sqlite_file
         self._lockfile = Lockfile(Path(sqlite_file).parent / "db.lock")
 
     def _fk_constraints(self, conn: sqlite3.Connection):
+        """Enables foreign key constraints on `conn`"""
         conn.execute("PRAGMA foreign_keys = ON")
 
     def get_raw_tables(self) -> tuple[list[tuple[Any, ...]], list[tuple[Any, ...]]]:
+        """Gets all rows and fields from both tables.
+
+        Returns:
+            tuple[list[tuple[Any, ...]], list[tuple[Any, ...]]]: The table data.
+                `runs` and `test_instances`.
+        """
         query_runs = "SELECT * FROM runs"
         query_tests = "SELECT * FROM test_instances"
 
@@ -45,6 +67,13 @@ class DB:
             return (runs, test_instances)
 
     def get_passing_views(self) -> tuple[list[tuple[Any, ...]], list[tuple[Any, ...]]]:
+        """Get the rows from views summarizing what runs and tests have
+        completed and their pass/fail status.
+
+        Returns:
+            tuple[list[tuple[Any, ...]], list[tuple[Any, ...]]]: The view data:
+                `complete_runs_passing` and `complete_tests_passing`.
+        """
         query_runs_passing = "SELECT * FROM complete_runs_passing ORDER BY id DESC"
         query_tests_passing = "SELECT * FROM complete_tests_passing ORDER BY run_id DESC"
 
@@ -66,6 +95,16 @@ class DB:
         run_result: Optional[str] = None,
         compare_result: Optional[str] = None,
     ) -> None:
+        """Upserts an individual test instance.
+
+        Args:
+            run_id (int): the id of the run in question.
+            env (str): test environment name (eg baseline or target)
+            test_id (str): the test identifier (toolbox.alias.variant.subtest)
+            status (str): status string
+            run_result (Optional[str], optional): PASS/FAIL. Defaults to None.
+            compare_result (Optional[str], optional): PASS/FAIL. Defaults to None.
+        """
         upsert_status = (
             "INSERT INTO test_instances (run_id, env, id, status, run_result, compare_result) "
             "VALUES (?, ?, ?, ?, ?, ?) "
@@ -90,6 +129,20 @@ class DB:
         include_passes: bool = False,
         start_local: Optional[dt] = None,
     ) -> tuple[int, list[str]]:
+        """Creates a new run and test instances for it.
+
+        Args:
+            test_ids (Iterable[str]): the new tests to perform during this run.
+            envs (list[str]): which test environments to add tests for (eg baseline).
+            include_passes (bool, optional): enqueue all tests in `test_ids` even
+                if they previously passed. Defaults to False.
+            start_local (Optional[datetime], optional): The date and time after
+                which the test can begin, in the operator's local time zone.
+                Defaults to None, which means 'now'.
+
+        Returns:
+            tuple[int, list[str]]: the newly added run ID and the test IDs enqueued.
+        """
         # query_next_runid = "SELECT ifnull(max(run_id)+1, 0) FROM test_instances"
         insert_run = "INSERT INTO runs (start) VALUES (?)"
         query_failures = (
@@ -125,6 +178,14 @@ class DB:
             return (next_runid, sorted(test_ids))
 
     def dequeue_tests(self, env: str) -> tuple[int, set[str]]:
+        """Fetch 'queued' tests and change their status to 'waiting'.
+
+        Args:
+            env (str): the test environment to get tests for (eg baseline).
+
+        Returns:
+            tuple[int, set[str]]: the run ID of the tests and the test IDs.
+        """
         query_queued = (
             "SELECT run_id, id FROM test_instances WHERE env=? AND status='queued' "
             "AND run_id=(SELECT max(id) FROM runs WHERE start<=datetime('now'))"
@@ -150,6 +211,11 @@ class DB:
             return run_id, test_ids
 
     def set_run_endtime(self, run_id: int):
+        """Update a run's end time.
+
+        Args:
+            run_id (int): the ID for the run.
+        """
         update_end = "UPDATE runs SET end=? WHERE id=?"
 
         with (
