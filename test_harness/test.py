@@ -54,13 +54,36 @@ class Test:
     """output files from script to be kept and compared"""
 
     def test_id(self, variant: str = "default") -> str:
+        """Get the test's ID with a specified "variant". The test ID is used
+        for both the test folder and test config filenames.
+
+        Args:
+            variant (str, optional): the test "variant" which may also include
+            a "subtest" name. Defaults to "default".
+
+        Returns:
+            str: the formatted test ID.
+        """
         return ".".join([normalize_toolbox_name(self.toolbox), self.alias.lower(), variant])
 
     def test_path(self, tests_dir: Path, variant: str = "default") -> Path:
+        """Get a Path to the config (.ini) file for this test (and variant).
+
+        Args:
+            tests_dir (Path): main tests directory (tests root)
+            variant (str, optional): "variant" name. Defaults to "default".
+
+        Returns:
+            Path: the filepath where the test's config file should be found.
+        """
         test_id = self.test_id(variant)
         return tests_dir / test_id / f"{test_id}.ini"
 
     def terrible_ini(self) -> str:
+        """
+        Returns:
+            str: Produces the ini file contents for this test.
+        """
 
         parameter_lines = []
         for p in self.parameters:
@@ -125,11 +148,13 @@ run_local = {str(self.run_local).lower()}
 
 
 def parameter_dict(params: list[Parameter]) -> dict[str, Any]:
+    """Get a list of parameters as a dict of param name and value."""
     return {p.name: p.value for p in params}
 
 
+# arcpy
 def get_parameters(toolbox_path: Union[str, Path], tool_alias: str) -> list[Parameter]:
-    """arcpy"""
+    """Get parameters for a specific tool in a toolbox."""
     param_info = arcpy.GetParameterInfo(str(Path(toolbox_path, tool_alias)))
     return [
         Parameter(
@@ -142,10 +167,17 @@ def get_parameters(toolbox_path: Union[str, Path], tool_alias: str) -> list[Para
     ]
 
 
+# arcpy
 def make_tests(toolbox_path: Union[str, Path], relative_to: Optional[Path] = None) -> list[Test]:
-    """arcpy
-    toolbox_path: absolute path to a toolbox
-    relative_to: a parent in `toolbox_path` to make the test's toolbox property relative to.
+    """Create `Test`s from each tool in a toolbox.
+
+    Args:
+        toolbox_path (Union[str, Path]): absolute path to a toolbox
+        relative_to (Optional[Path], optional): a parent in `toolbox_path` to
+            make the test's toolbox property relative to. Defaults to None.
+
+    Returns:
+        list[Test]: a Test object for each tool
     """
     toolbox_path = Path(toolbox_path)
     relative_toolbox = toolbox_path
@@ -164,8 +196,17 @@ def make_tests(toolbox_path: Union[str, Path], relative_to: Optional[Path] = Non
 
 
 def parse_test_ini(contents: str) -> Test:
+    """Parse a test config .ini.
+
+    Args:
+        contents (str): text contents of the ini file.
+
+    Returns:
+        Test: the test object
+    """
+
     def _strip(s: str) -> str:
-        return s.strip(" \'\"")
+        return s.strip(" '\"")
 
     parser = configparser.ConfigParser(allow_no_value=True)
     parser.optionxform = str  # type: ignore # preserve case of ini keys. default converts to lower...
