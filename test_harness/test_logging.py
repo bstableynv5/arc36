@@ -13,7 +13,15 @@ real_stderr = sys.stderr
 
 
 class OutputCapture:
-    """Capture arcpy tool output to a logger."""
+    """A context manager that captures arcpy tool output to a logger.
+
+    Messages sent to arcpy's AddMessage and AddWarning are prevented from
+    reaching their original functions and printing to the message window, but
+    AddError is allowed to pass through so that exceptions will be raised.
+
+    AddMessage maps to logger.DEBUG, AddWarning to logger.WARNING, and
+    AddError to logger.ERROR.
+    """
 
     _orig_message = arcpy.AddMessage  # real arcpy funcs?
     _orig_warning = arcpy.AddWarning
@@ -47,6 +55,7 @@ class OutputCapture:
 
 
 def get_null_logger() -> logging.Logger:
+    """Gets a logger that discards its logs."""
     log = logging.getLogger("null_logger")
     if log.hasHandlers():
         return log
@@ -60,6 +69,16 @@ def setup_logger(
 ) -> logging.Logger:
     """Configures the logger passed and returns it. Does not create new loggers.
     Python logging module loggers are singletons based on the logger's "name".
+
+    Args:
+        logger (logging.Logger): the logger to configure
+        log_file (Union[Path, str]): a file path to which the log messages will
+            be written in addition to the console.
+        add_timestamp (bool, optional): append a compact ISO-style timestamp to
+            the log filename. Defaults to True.
+
+    Returns:
+        logging.Logger: the same logger passed to `logger`
     """
 
     logger.setLevel(logging.DEBUG)
