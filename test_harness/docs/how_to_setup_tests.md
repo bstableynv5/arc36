@@ -140,7 +140,7 @@ That data should be copied to the `inputs` folder, and then _not modified_.
     1. You may include the quotes ( " or ' ) around the parameter values from the python code, though it's ideal to remove them and copy only the value.
     1. The config .ini will start filled with the tool's default values, if present. Don't forget to change these if you modified the default parameters when setting up the tool in ArcGIS.
     1. Any of the files from `inputs` should be shortened to start with `inputs\`. For example, `I:\test\ArcGISPro_VersionTesting\tests\htcondor_tools.blast2demrasters.default\inputs\tileindex.gdb\tileindex` would become `inputs\tileindex.gdb\tileindex`.
-    1. Parameters with values `None`, `""`, or `"#"` can be ignored and left blank in the config .ini.
+    1. Parameters with values `None`, `""`, or `"#"` in the python can be ignored and left blank in the config .ini.
 
     ![get_params](img/02_python_to_ini_blast2dem_vsplit_a_annotated.png)
     ![get_params](img/03_param_tweaks_blast2dem_annotated.png)
@@ -154,7 +154,7 @@ That data should be copied to the `inputs` folder, and then _not modified_.
     !!! success ""
         What does the tool do that I really care about?
 
-    1. If the item is something in a Geodatabase (eg feature class), list only the geodatabase.
+    1. If the item is something in a Geodatabase (eg feature class), list only the geodatabase. For example: `inputs\outputdata.gdb` instead of `inputs\outputdata.gdb\output_polygons`.
     1. You may list folders (see example in image).
     1. If a tool produces some extra files that really aren't important, you can omit those.
     1. If the tool doesn't produce anything or modify anything, this section can be left empty.
@@ -182,7 +182,7 @@ The test folder name and config .ini file within it have a particular name schem
 
 All the tests are given a variant ID of `default` and no subtests when an empty template is created. You can use this unless you want to create additional variants or subtests.
 
-The recommended way of **creating a new variant** is to make a copy of one of the tool's test folders (such as `default`), then rename the variant portion of the folder and config .ini filenames, and setup test inputs and parameters as normal.
+The recommended way of **creating a new variant** is to make a copy of one of the tool's test folders (such as `default`), then rename the variant portion of _both_ the folder and config .ini filenames, and setup test inputs and parameters as normal.
 
 The recommended way of **creating a new subtest** is to configure the config .ini for a test first. Then copy the config .ini, rename the subtest portion of the copy's filename, and modify its parameters as necessary.
 
@@ -194,7 +194,7 @@ Using the `htcondor_tools.blast2demrasters` example again, a new variant was cre
 ![grounds_folder](img/test_folder_02_variant_subtests_a.png)
 ![grounds_catalog](img/test_folder_02_variant_subtests_b.png)
 
-The 3 config .ini files with differences highlighted are shown below. `inputs/raster` was used as to save the output rasters in these 3 subtests, but it would also possible for each subtests to save outputs to separate folders (ex `inputs/out_be` and `inputs/slope`). However, when run each subtest gets its own copy of the entire `inputs` folder, so this isn't necessary.
+The 3 config .ini files with differences highlighted are shown below. `inputs\raster` was used as to save the output rasters in these 3 subtests, but it would also possible for each subtests to save outputs to separate folders (ex `inputs\out_be` and `inputs\slope`). However, when run each subtest gets its own copy of the entire `inputs` folder, so this isn't necessary.
 
 ![grounds_subtests](img/subtests_sidebyside_annotated.png)
 
