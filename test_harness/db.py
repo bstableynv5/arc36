@@ -66,13 +66,18 @@ class DB:
             test_instances = conn.execute(query_tests).fetchall()
             return (runs, test_instances)
 
-    def get_passing_views(self) -> tuple[list[tuple[Any, ...]], list[tuple[Any, ...]]]:
+    def get_passing_views(
+        self,
+    ) -> tuple[list[tuple[int, int, int, bool]], list[tuple[int, str, bool, bool, bool]]]:
         """Get the rows from views summarizing what runs and tests have
         completed and their pass/fail status.
 
         Returns:
-            tuple[list[tuple[Any, ...]], list[tuple[Any, ...]]]: The view data:
-                `complete_runs_passing` and `complete_tests_passing`.
+            tuple[list[tuple[int,int,int,bool]], list[tuple[int,str,bool,bool,bool]]]:
+            The view data
+            `complete_runs_passing` = (run_id:int, num_tests:int, num_passed:int, passed:bool)
+            and
+            `complete_tests_passing` = (run_id:int, id:str, run_passed:bool, compare_passed:bool, both_passed:bool)
         """
         query_runs_passing = "SELECT * FROM complete_runs_passing ORDER BY id DESC"
         query_tests_passing = "SELECT * FROM complete_tests_passing ORDER BY run_id DESC"
