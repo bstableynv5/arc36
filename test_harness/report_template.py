@@ -3,9 +3,11 @@ from itertools import groupby
 
 from formats import PSEUDO_ISO_FMT
 
+# templates for table rows for the raw "runs" and "test_instances" db tables
 RUN_ROW_TEMPLATE = r"<TR><TD>{0}</TD><TD>{1}</TD><TD>{2}</TD></TR>"
 TEST_ROW_TEMPLATE = r"<TR><TD>{0}</TD><TD>{1}</TD><TD>{2}</TD><TD>{3}</TD><TD data-result='{4}'>{4}</TD><TD data-result='{5}'>{5}</TD></TR>"
 
+# templates for table rows for the "complete_*_passing" db views
 RUN_PASSED_ROW_TEMPLATE = r"<TR><TD>{0}</TD><TD>{1}</TD><TD>{2}</TD><TD>{3}</TD><TD>{4}</TD><TD data-result='{5}'></TD></TR>"
 TEST_PASSED_ROW_TEMPLATE = r"<TR><TD>{0}</TD><TD>{1}</TD><TD data-result='{2}'></TD><TD data-result='{3}'></TD><TD data-result='{4}'></TD></TR>"
 
@@ -30,6 +32,16 @@ CSS = r"""
 
 
 def make_report_html(runs_passing: list[tuple], test_passing: list[tuple]) -> str:
+    """
+    Generate html for a report about the runs and test details.
+
+    Args:
+        runs_passing (list[tuple]): rows from the `complete_runs_passing` view.
+        tests_passing (list[tuple]): rows from the `complete_tests_passing` view.
+
+    Returns:
+        str: html of the complete report page.
+    """
     run_html = "\n".join(RUN_PASSED_ROW_TEMPLATE.format(*row) for row in runs_passing)
     test_html = ""
     for run_id, group in groupby(test_passing, lambda r: r[0]):
