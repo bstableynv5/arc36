@@ -23,30 +23,59 @@ from test_logging import OutputCapture, setup_logger
 
 
 def _toolbox_files(toolboxes_dir: Path) -> Iterable[Path]:
+    """glob all atbx and tbx files 1 level deep in toolbox folders"""
     return chain(toolboxes_dir.glob("*/*.atbx"), toolboxes_dir.glob("*/*.tbx"))
 
 
 def _config_files(tests_dir: Path) -> Iterable[Path]:
+    """glob all .ini files 1 level deep within test folders"""
     return tests_dir.glob("*/*.ini")
 
 
-def find_tests(root: Union[str, Path]) -> list[tuple[Path, str, Test]]:
-    root = Path(root)
-    test_configs = _config_files(root)
+def find_tests(tests_dir: Union[str, Path]) -> list[tuple[Path, str, Test]]:
+    """Generate `Test` objects from all test config files.
+
+    Args:
+        tests_dir (Union[str, Path]): the directory with all the tool tests.
+
+    Returns:
+        list[tuple[Path, str, Test]]: the absolute path to the test config file,
+            the test ID, and the `Test` object itself.
+    """
+    tests_dir = Path(tests_dir)
+    test_configs = _config_files(tests_dir)
     tests = [(c.absolute(), c.stem, parse_test_ini(c.read_text())) for c in test_configs]
     return tests
 
 
-def find_toolboxes(root: Union[str, Path]) -> list[Test]:
-    root = Path(root)  # I:/.../toolboxes/baseline
-    toolboxes = _toolbox_files(root)
+def find_toolboxes(toolboxes_dir: Union[str, Path]) -> list[Test]:
+    """Create default `Test` objects for every tool found within a toolbox dir.
+
+    Args:
+        toolboxes_dir (Union[str, Path]): the toolbox dir, such as "toolboxes/baseline".
+
+    Returns:
+        list[Test]: default information about each tool/test
+    """
+    toolboxes_dir = Path(toolboxes_dir)  # I:/.../toolboxes/baseline
+    toolboxes = _toolbox_files(toolboxes_dir)
     tests: list[Test] = []
     for toolbox in toolboxes:
-        tests.extend(make_tests(toolbox, root))
+        tests.extend(make_tests(toolbox, toolboxes_dir))
     return tests
 
 
 def run(toolbox_path: str, tool_alias: str, params: dict[str, Any]):
+    """Import and run a specific tool.
+
+    Args:
+        toolbox_path (str): the full path to a toolbox
+        tool_alias (str): the tool's alias (Name in the arcpro gui)
+        params (dict[str, Any]): dict with tool parameters.
+
+    Raises:
+        Whatever exceptions the tool raises.
+    """
     toolbox = arcpy.ImportToolbox(toolbox_path)
     tool = getattr(toolbox, tool_alias)
     tool(**params)
@@ -57,6 +86,15 @@ class TestFailException(Exception):
 
 
 def run_single_test(config: 'GeneralConfig', test_path: Path, run_id: int, env: str):
+    """Runs a single tool test. Logs information to file and updates the
+    test status in sql.
+
+    Args:
+        config (GeneralConfig): overall test harness information such as paths
+        test_path (Path): absolute path to the test's config .ini file
+        run_id (int): id number for the "run" of multiple tests
+        env (str): which testing arcpro env (eg baseline or target)
+    """
     try:
         results = DB(str(config.database))
         test_id = test_path.stem
@@ -146,6 +184,17 @@ def run_single_test(config: 'GeneralConfig', test_path: Path, run_id: int, env: 
 def run_all_tests(
     config: 'GeneralConfig', run_id: int, env: str, test_ids_to_run: Optional[set[str]] = None
 ):
+    """Runs multiple tool tests. Each individual test is launched within a
+    subprocess.
+
+    Args:
+        config (GeneralConfig): overall test harness config such as paths.
+        run_id (int): id number for the set of tool tests.
+        env (str): testing environment to use (eg baseline or target)
+        test_ids_to_run (Optional[set[str]], optional): if provided, only tests
+            with IDs in this set will be run. Useful to limit tests to only
+            those that have not passed, etc. Defaults to None.
+    """
     tests_dir = config.tests_dir
     run_logfile = config.logs_dir / formats.run_logfile(run_id, env)
     env_python = config.environments[env]
@@ -189,6 +238,20 @@ def run_all_tests(
 
 
 def create_new_tests(toolbox_dir: Path, tests_dir: Path, ignore: set[str]) -> tuple[int, int]:
+    """Scans a directory of toolboxes and creates 'blank' template tool tests.
+
+    Args:
+        toolbox_dir (Path): absolute path to directory to scan for
+            toolboxes/tools. Usually will be the "baseline" version.
+        tests_dir (Path): absolute path to where the test templates
+            (folders) will be made.
+        ignore (set[str]): set of tool/test IDs that should _not_ have a
+            test template created.
+
+    Returns:
+        tuple[int, int]: count of new tests created and the count of total tests
+            that could have been created (ie the number of tools found).
+    """
     tests = find_toolboxes(toolbox_dir)  # I:/.../toolboxes/baseline
     tests_dir.mkdir(exist_ok=True)
     count = 0
@@ -220,6 +283,7 @@ class GeneralConfig:
     database: Path  # sqlite database
 
     def get_general_logger(self) -> logging.Logger:
+        """Gets a logger for this program's activity."""
         logfile = self.logs_dir / "general.log"
         return setup_logger(logging.getLogger("general"), logfile, add_timestamp=False)
 
@@ -243,6 +307,7 @@ class GeneralConfig:
         log.debug("END CMD_TBNORMALIZE")
 
     def cmd_create_new_tests(self, args: argparse.Namespace):
+        """create test templates for tools"""
         scan_dir = self.toolboxes_dir / args.env
         ignore_tools = set()
         if args.ignore is not None:
@@ -258,6 +323,7 @@ class GeneralConfig:
         log.debug("END CMD_CREATE")
 
     def cmd_prune_tests(self, args: argparse.Namespace):
+        """remove any test templates that have nothing in their `inputs` folder."""
         log = self.get_general_logger()
         log.debug("START CMD_PRUNE")
         log.info(f"Scanning {self.tests_dir}")
@@ -274,9 +340,12 @@ class GeneralConfig:
         log.debug("END CMD_PRUNE")
 
     def cmd_run_single_test(self, args: argparse.Namespace):
+        """Run a single tool test. This is command is meant to be used when
+        launching a test as a subprocess."""
         run_single_test(self, Path(args.path).absolute(), args.run_id, args.env)
 
     def cmd_run_all_tests(self, args: argparse.Namespace):
+        """Run all queued tests for an environment"""
         log = self.get_general_logger()
         log.debug("START CMD_RUN_ALL")
         db = DB(str(self.database))
@@ -290,6 +359,9 @@ class GeneralConfig:
         log.debug("END CMD_RUN_ALL")
 
     def cmd_enqueue_tests(self, args: argparse.Namespace):
+        """Schedule a run and tests for both environments, possibly at a later
+        time. Normally schedules failed tests, but can also enqueue all tests
+        regardless of status."""
         log = self.get_general_logger()
         log.debug("START CMD_ENQUEUE")
         test_ids = [id for _, id, _ in find_tests(self.tests_dir)]
@@ -306,11 +378,13 @@ class GeneralConfig:
         log.debug("END CMD_ENQUEUE")
 
     def cmd_generate_report(self, args: argparse.Namespace):
+        """Produces an html report of runs and tests status."""
         runs_passing, tests_passing = DB(str(self.database)).get_passing_views()
         html = make_report_html(runs_passing, tests_passing)
         Path(args.path).write_text(html)
 
     def configure_parser(self) -> argparse.ArgumentParser:
+        """Configure an ArgumentParser"""
         parser = argparse.ArgumentParser()
         subparsers = parser.add_subparsers(dest="command", help="Subcommands")
 
@@ -403,7 +477,7 @@ class GeneralConfig:
 
 
 def open_config(config_file: Union[Path, str] = "config.json") -> GeneralConfig:
-    """looks in cwd"""
+    """Creates a GeneralConfig from a json config file."""
 
     config_file = Path(config_file)
     values = json.loads(config_file.read_text())
