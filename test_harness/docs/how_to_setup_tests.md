@@ -155,6 +155,7 @@ That data should be copied to the `inputs` folder, and then _not modified_.
         What does the tool do that I really care about?
 
     1. If the item is something in a Geodatabase (eg feature class), list only the geodatabase. For example: `inputs\outputdata.gdb` instead of `inputs\outputdata.gdb\output_polygons`.
+    1. If the item is something that is a "file" comprised of multiple files, you'll have to list them all. **Shapefile** is the most common culprit.
     1. You may list folders (see example in image).
     1. If a tool produces some extra files that really aren't important, you can omit those.
     1. If the tool doesn't produce anything or modify anything, this section can be left empty.
