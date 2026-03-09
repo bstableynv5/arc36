@@ -88,6 +88,10 @@
 | nv5_toolbox           | TIFF to DWG (Dask)                                       | TIFFtoPoint                     | nv5_toolbox.tifftopoint                       |
 | nv5_toolbox           | TIFF to Esri Grid (dask)                                 | TiffToEsriGrid                  | nv5_toolbox.tifftoesrigrid                    |
 | nv5_toolbox           | Urban vs Rural Land Cover Estimator                      | AOILandCover                    | nv5_toolbox.aoilandcover                      |
+| pdx_obliques_tools | Add Missing Exif            | AddMissingExif            | pdx_obliques_tools.addmissingexif            |
+| pdx_obliques_tools | MultiCam EO Reformat        | MultiCamEOReformat        | pdx_obliques_tools.multicameoreformat        |
+| pdx_obliques_tools | Perspectives EO conditioner | PerspectivesEOConditioner | pdx_obliques_tools.perspectiveseoconditioner |
+| pdx_obliques_tools | Update Exif Dates (PG&E)    | UpdateExif                | pdx_obliques_tools.updateexif                |
 | phase_tracing         | 0. Add All Fields                                        | AddAllFields                    | phase_tracing.addallfields                    |
 | phase_tracing         | 1. Check Single Phase near Step transformers             | Qc1PhByStepXfmer                | phase_tracing.qc1phbystepxfmer                |
 | phase_tracing         | 1. Orient Spans                                          | FindFlippedSpans                | phase_tracing.findflippedspans                |
