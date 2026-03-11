@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import arcpy
 import geopandas as gp
 import laspy
 import numpy as np
@@ -170,3 +171,31 @@ def test_compare_shapefile(tmp_path: Path):
         not compare(a, b)
         for a, b in zip(file_a.parent.glob("shapefile_a.*"), file_b.parent.glob("shapefile_b.*"))
     )
+
+
+def test_compare_geodatabase(tmp_path: Path):
+    # 2 shapefiles that are the same
+    file_a = tmp_path / "gdb_a.gdb"
+    data_a = {"A": [1, 2], "B": ["a", "b"], "geometry": [Point(0, 0), Point(0, 1)]}
+    gp.GeoDataFrame(data_a, geometry="geometry", crs=4326).to_file(file_a.with_suffix(".shp"))
+
+    file_aa = tmp_path / "gdb_aa.gdb"
+    gp.GeoDataFrame(data_a, geometry="geometry", crs=4326).to_file(file_aa.with_suffix(".shp"))
+
+    # different shapefile
+    file_b = tmp_path / "gdb_b.gdb"
+    data_b = {"A": [1, 2], "B": ["a", "b"], "geometry": [Point(0, 0), Point(1, 1)]}
+    gp.GeoDataFrame(data_b, geometry="geometry", crs=4326).to_file(file_b.with_suffix(".shp"))
+
+    # convert shp to gdb feature classes
+    for gdb in (file_a, file_aa, file_b):
+        arcpy.CreateFileGDB_management(str(gdb.parent), gdb.name)
+        arcpy.FeatureClassToFeatureClass_conversion(
+            str(gdb.with_suffix(".shp")),
+            str(gdb),
+            "feature_class",
+        )
+
+    assert compare(file_a, file_a)
+    assert compare(file_a, file_aa)
+    assert not compare(file_a, file_b)
