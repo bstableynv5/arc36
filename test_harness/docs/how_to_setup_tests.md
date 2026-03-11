@@ -205,6 +205,15 @@ The 3 config .ini files with differences highlighted are shown below. `inputs\ra
 - The automated test running system can only accept Feature Classes, not Feature _Layers_. As such, tools that **require** a selection of features will not work.
 
 
+## Examples
+
+Fully setup examples can be found in the following test folders:
+
+- I:\test\ArcGISPro_VersionTesting\tests\htcondor_tools.blast2demrasters.default
+- I:\test\ArcGISPro_VersionTesting\tests\htcondor_tools.blast2demrasters.grounds
+- I:\test\ArcGISPro_VersionTesting\tests\nv5_toolbox.prjforlas.default
+
+
 ## Glossary
 
 | term | detail |
