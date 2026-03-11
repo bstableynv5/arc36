@@ -53,12 +53,19 @@ def test_compare_hash_two_dirs(tmp_path: Path):
 
 
 def test_compare_text_files(tmp_path: Path):
+    # two text files with identical data
     file_a = tmp_path / "a.txt"
     file_a.write_text("some text")
+
+    file_aa = tmp_path / "aa.txt"
+    file_aa.write_text("some text")
+
+    # different text file
     file_b = tmp_path / "b.txt"
     file_b.write_text("different text")
 
     assert compare(file_a, file_a)
+    assert compare(file_a, file_aa)
     assert not compare(file_a, file_b)
 
 
@@ -82,15 +89,21 @@ def _write_tiff(p: Path, data: np.ndarray):
 
 
 def test_compare_tiff_files(tmp_path: Path):
+    # 2 tifs with identical data
     file_a = tmp_path / "image_a.tiff"
     data_a = np.array([0, 1, 2, 3]).reshape((2, 2))
     _write_tiff(file_a, data_a)
 
+    file_aa = tmp_path / "image_aa.tiff"
+    _write_tiff(file_aa, data_a)
+
+    # different tif
     file_b = tmp_path / "image_b.tiff"
     data_b = np.array([3, 2, 1, 0]).reshape((2, 2))
     _write_tiff(file_b, data_b)
 
     assert compare(file_a, file_a)
+    assert compare(file_a, file_aa)
     assert not compare(file_a, file_b)
 
 
@@ -111,15 +124,21 @@ def _write_las(p: Path, data: np.ndarray):
 
 
 def test_compare_las_files(tmp_path: Path):
+    # 2 las with identical data
     file_a = tmp_path / "las_a.las"
     data_a = np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]])
     _write_las(file_a, data_a)
 
+    file_aa = tmp_path / "las_aa.las"
+    _write_las(file_aa, data_a)
+
+    # different las
     file_b = tmp_path / "las_b.las"
     data_b = np.array([[0, 0, 1], [0, 0, 2], [0, 0, 3]])
     _write_las(file_b, data_b)
 
     assert compare(file_a, file_a)
+    assert compare(file_a, file_aa)
     assert not compare(file_a, file_b)
 
 
