@@ -1,8 +1,10 @@
 # from typing import Protocol
-from pathlib import Path
 import hashlib
 from hashlib import md5 as hashfunc
+from pathlib import Path
 from typing import Optional
+
+import geopandas as gp
 
 
 def _get_hash(p: Path, hash: Optional['hashlib._Hash'] = None) -> bytes:
@@ -45,6 +47,12 @@ def compare_hash(path_a: Path, path_b: Path) -> bool:
            hashes; False otherwise.
     """
     return _get_hash(path_a) == _get_hash(path_b)
+
+
+def compare_featureclass(path_a: Path, path_b: Path) -> bool:
+    df_a = gp.read_file(path_a.parent, layer=path_a.name)
+    df_b = gp.read_file(path_b.parent, layer=path_b.name)
+    return df_a.equals(df_b)  # seems to account for geometry and crs
 
 
 def compare(path_a: Path, path_b: Path) -> bool:

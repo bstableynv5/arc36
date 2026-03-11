@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Iterable
 
 import arcpy
 import geopandas as gp
@@ -10,7 +11,7 @@ import rasterio as rio
 from rasterio.transform import Affine
 from shapely.geometry import Point
 
-from compare import compare, compare_hash
+from compare import compare, compare_hash, compare_featureclass
 
 
 def test_always_pass():
@@ -143,59 +144,72 @@ def test_compare_las_files(tmp_path: Path):
     assert not compare(file_a, file_b)
 
 
-def test_compare_shapefile(tmp_path: Path):
+def _write_3_shapefiles(tmp_path: Path) -> tuple[Path, Path, Path]:
     # 2 shapefiles that are the same
-    file_a = tmp_path / "shapefile_a.shp"
+    file_a = tmp_path / "data_a.shp"
     data_a = {"A": [1, 2], "B": ["a", "b"], "geometry": [Point(0, 0), Point(0, 1)]}
     gp.GeoDataFrame(data_a, geometry="geometry", crs=4326).to_file(file_a)
 
-    file_aa = tmp_path / "shapefile_aa.shp"
+    file_aa = tmp_path / "data_aa.shp"
     gp.GeoDataFrame(data_a, geometry="geometry", crs=4326).to_file(file_aa)
 
     # different shapefile
-    file_b = tmp_path / "shapefile_b.shp"
+    file_b = tmp_path / "data_b.shp"
     data_b = {"A": [1, 2], "B": ["a", "b"], "geometry": [Point(0, 0), Point(1, 1)]}
     gp.GeoDataFrame(data_b, geometry="geometry", crs=4326).to_file(file_b)
 
+    return (file_a, file_aa, file_b)
+
+
+def test_compare_shapefile(tmp_path: Path):
+    file_a, file_aa, file_b = _write_3_shapefiles(tmp_path)
+
     # shapefile compares with itself
-    assert all(compare(a, a) for a in file_a.parent.glob("shapefile_a.*"))
+    assert len(list(compare(a, a) for a in file_a.parent.glob(file_a.with_suffix(".*").name))) > 0
+    assert all(compare(a, a) for a in file_a.parent.glob(file_a.with_suffix(".*").name))
 
     # shapefiles with exact same data compare (ie timestamp or something doesn't trigger difference)
     assert all(
         compare(a, aa)
-        for a, aa in zip(file_a.parent.glob("shapefile_a.*"), file_b.parent.glob("shapefile_aa.*"))
+        for a, aa in zip(
+            file_a.parent.glob(file_a.with_suffix(".*").name),
+            file_aa.parent.glob(file_aa.with_suffix(".*").name),
+        )
     )
 
     # different shapefiles do not compare
     assert any(
         not compare(a, b)
-        for a, b in zip(file_a.parent.glob("shapefile_a.*"), file_b.parent.glob("shapefile_b.*"))
+        for a, b in zip(
+            file_a.parent.glob(file_a.with_suffix(".*").name),
+            file_b.parent.glob(file_b.with_suffix(".*").name),
+        )
     )
 
 
-def test_compare_geodatabase(tmp_path: Path):
-    # 2 shapefiles that are the same
-    file_a = tmp_path / "gdb_a.gdb"
-    data_a = {"A": [1, 2], "B": ["a", "b"], "geometry": [Point(0, 0), Point(0, 1)]}
-    gp.GeoDataFrame(data_a, geometry="geometry", crs=4326).to_file(file_a.with_suffix(".shp"))
-
-    file_aa = tmp_path / "gdb_aa.gdb"
-    gp.GeoDataFrame(data_a, geometry="geometry", crs=4326).to_file(file_aa.with_suffix(".shp"))
-
-    # different shapefile
-    file_b = tmp_path / "gdb_b.gdb"
-    data_b = {"A": [1, 2], "B": ["a", "b"], "geometry": [Point(0, 0), Point(1, 1)]}
-    gp.GeoDataFrame(data_b, geometry="geometry", crs=4326).to_file(file_b.with_suffix(".shp"))
-
+def _convert_shp_to_fc(*shapefiles: Path) -> list[Path]:
     # convert shp to gdb feature classes
-    for gdb in (file_a, file_aa, file_b):
+    FC_NAME = "feature_class"
+    gdb_fcs = []
+    for shp in shapefiles:
+        gdb = shp.with_suffix(".gdb")  # dir/data.shp -> dir/data.gdb
         arcpy.CreateFileGDB_management(str(gdb.parent), gdb.name)
-        arcpy.FeatureClassToFeatureClass_conversion(
-            str(gdb.with_suffix(".shp")),
-            str(gdb),
-            "feature_class",
-        )
+        arcpy.FeatureClassToFeatureClass_conversion(str(shp), str(gdb), FC_NAME)
+        gdb_fcs.append(gdb / FC_NAME)
+    return gdb_fcs
 
-    assert compare(file_a, file_a)
-    assert compare(file_a, file_aa)
-    assert not compare(file_a, file_b)
+
+def test_compare_geodatabase(tmp_path: Path):
+    file_a, file_aa, file_b = _convert_shp_to_fc(*_write_3_shapefiles(tmp_path))
+
+    assert compare(file_a.parent, file_a.parent)
+    assert compare(file_a.parent, file_aa.parent)
+    assert not compare(file_a.parent, file_b.parent)
+
+
+def test_compare_featureclass(tmp_path: Path):
+    file_a, file_aa, file_b = _convert_shp_to_fc(*_write_3_shapefiles(tmp_path))
+
+    assert compare_featureclass(file_a, file_a)
+    assert compare_featureclass(file_a, file_aa)
+    assert not compare_featureclass(file_a, file_b)
