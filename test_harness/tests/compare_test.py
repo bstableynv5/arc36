@@ -1,11 +1,13 @@
 from pathlib import Path
 
+import geopandas as gp
 import laspy
 import numpy as np
 import pyproj
 import pytest
 import rasterio as rio
 from rasterio.transform import Affine
+from shapely.geometry import Point
 
 from compare import compare, compare_hash
 
@@ -119,3 +121,33 @@ def test_compare_las_files(tmp_path: Path):
 
     assert compare(file_a, file_a)
     assert not compare(file_a, file_b)
+
+
+def test_compare_shapefile(tmp_path: Path):
+    # 2 shapefiles that are the same
+    file_a = tmp_path / "shapefile_a.shp"
+    data_a = {"A": [1, 2], "B": ["a", "b"], "geometry": [Point(0, 0), Point(0, 1)]}
+    gp.GeoDataFrame(data_a, geometry="geometry", crs=4326).to_file(file_a)
+
+    file_aa = tmp_path / "shapefile_aa.shp"
+    gp.GeoDataFrame(data_a, geometry="geometry", crs=4326).to_file(file_aa)
+
+    # different shapefile
+    file_b = tmp_path / "shapefile_b.shp"
+    data_b = {"A": [1, 2], "B": ["a", "b"], "geometry": [Point(0, 0), Point(1, 1)]}
+    gp.GeoDataFrame(data_b, geometry="geometry", crs=4326).to_file(file_b)
+
+    # shapefile compares with itself
+    assert all(compare(a, a) for a in file_a.parent.glob("shapefile_a.*"))
+
+    # shapefiles with exact same data compare (ie timestamp or something doesn't trigger difference)
+    assert all(
+        compare(a, aa)
+        for a, aa in zip(file_a.parent.glob("shapefile_a.*"), file_b.parent.glob("shapefile_aa.*"))
+    )
+
+    # different shapefiles do not compare
+    assert any(
+        not compare(a, b)
+        for a, b in zip(file_a.parent.glob("shapefile_a.*"), file_b.parent.glob("shapefile_b.*"))
+    )
