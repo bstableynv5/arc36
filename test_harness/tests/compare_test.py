@@ -1,9 +1,13 @@
-import numpy as np
-import pytest
 from pathlib import Path
-from compare import compare_hash, compare
+
+import laspy
+import numpy as np
+import pyproj
+import pytest
 import rasterio as rio
 from rasterio.transform import Affine
+
+from compare import compare, compare_hash
 
 
 def test_always_pass():
@@ -69,7 +73,7 @@ def _write_tiff(p: Path, data: np.ndarray):
         width=data.shape[1],
         count=1,
         dtype=data.dtype,
-        crs="+proj=latlong",
+        crs="EPSG:4326",
         transform=transform,
     ) as dst:
         dst.write(data, 1)
@@ -83,6 +87,35 @@ def test_compare_tiff_files(tmp_path: Path):
     file_b = tmp_path / "image_b.tiff"
     data_b = np.array([3, 2, 1, 0]).reshape((2, 2))
     _write_tiff(file_b, data_b)
+
+    assert compare(file_a, file_a)
+    assert not compare(file_a, file_b)
+
+
+def _write_las(p: Path, data: np.ndarray):
+    # 1. Create a new header
+    header = laspy.LasHeader(point_format=6, version="1.4")
+    header.offsets = np.min(data, axis=0)
+    header.scales = np.array([0.1, 0.1, 0.1])
+    header.add_crs(pyproj.CRS.from_epsg(4326))
+
+    # 2. Create a Las
+    las = laspy.LasData(header)
+    las.x = data[:, 0]
+    las.y = data[:, 1]
+    las.z = data[:, 2]
+
+    las.write(str(p))
+
+
+def test_compare_las_files(tmp_path: Path):
+    file_a = tmp_path / "las_a.las"
+    data_a = np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]])
+    _write_las(file_a, data_a)
+
+    file_b = tmp_path / "las_b.las"
+    data_b = np.array([[0, 0, 1], [0, 0, 2], [0, 0, 3]])
+    _write_las(file_b, data_b)
 
     assert compare(file_a, file_a)
     assert not compare(file_a, file_b)
