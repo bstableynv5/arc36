@@ -72,5 +72,7 @@ def compare_gdb(path_a: Path, path_b: Path) -> bool:
 
 
 def compare(path_a: Path, path_b: Path) -> bool:
-    same_content = compare_hash(path_a, path_b)
-    return same_content
+    same = compare_hash(path_a, path_b)
+    if not same and path_a.suffix.lower() == ".gdb" and path_b.suffix.lower() == ".gdb":
+        same = compare_gdb(path_a, path_b)
+    return same
