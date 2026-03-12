@@ -332,9 +332,13 @@ class GeneralConfig:
             if not item.is_dir():
                 continue
             inputs = item / "inputs"
-            if len(list(inputs.iterdir())) == 0:
-                log.info(f"Removing {item.name}")
-                shutil.rmtree(str(item))
+            has_empty_inputs = len(list(inputs.iterdir())) == 0
+            if has_empty_inputs:
+                if not args.dry_run:
+                    log.info(f"Removing {item.name}")
+                    shutil.rmtree(str(item))
+                else:
+                    log.info(f"DRY RUN Removing {item.name}")
                 count += 1
         log.info(f"Removed {count} tests")
         log.debug("END CMD_PRUNE")
@@ -471,6 +475,11 @@ class GeneralConfig:
 
         ######
         prune = subparsers.add_parser("prune", help="remove tests with no input files")
+        prune.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="run prune command without removing tests",
+        )
         prune.set_defaults(func=self.cmd_prune_tests)
 
         return parser
