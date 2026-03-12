@@ -164,8 +164,11 @@ def _write_3_shapefiles(tmp_path: Path) -> tuple[Path, Path, Path]:
 def test_compare_shapefile(tmp_path: Path):
     file_a, file_aa, file_b = _write_3_shapefiles(tmp_path)
 
+    # make sure glob finds something. all() and any() behavior does not cause
+    # failed test when no shp is made.
+    assert len(list(file_a.parent.glob(file_a.with_suffix(".*").name))) > 0
+
     # shapefile compares with itself
-    assert len(list(compare(a, a) for a in file_a.parent.glob(file_a.with_suffix(".*").name))) > 0
     assert all(compare(a, a) for a in file_a.parent.glob(file_a.with_suffix(".*").name))
 
     # shapefiles with exact same data compare (ie timestamp or something doesn't trigger difference)
