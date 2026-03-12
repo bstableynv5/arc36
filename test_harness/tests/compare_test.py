@@ -224,3 +224,7 @@ def test_compare_specialization_geodatabase(tmp_path: Path):
     assert compare_gdb(file_a.parent, file_a.parent)
     assert compare_gdb(file_a.parent, file_aa.parent)
     assert not compare_gdb(file_a.parent, file_b.parent)
+
+    # add an additional feature class, which should make a and aa differ
+    arcpy.CreateFeatureclass_management(str(file_aa.parent), "extra_fc", "POINT")
+    assert not compare_gdb(file_a.parent, file_aa.parent)
