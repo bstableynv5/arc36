@@ -11,7 +11,7 @@ import rasterio as rio
 from rasterio.transform import Affine
 from shapely.geometry import Point
 
-from compare import compare, compare_hash, compare_featureclass
+from compare import compare, compare_hash, compare_featureclass, compare_gdb
 
 
 def test_always_pass():
@@ -213,3 +213,11 @@ def test_compare_featureclass(tmp_path: Path):
     assert compare_featureclass(file_a, file_a)
     assert compare_featureclass(file_a, file_aa)
     assert not compare_featureclass(file_a, file_b)
+
+
+def test_compare_gdb(tmp_path: Path):
+    file_a, file_aa, file_b = _convert_shp_to_fc(*_write_3_shapefiles(tmp_path))
+
+    assert compare_gdb(file_a.parent, file_a.parent)
+    assert compare_gdb(file_a.parent, file_aa.parent)
+    assert not compare_gdb(file_a.parent, file_b.parent)

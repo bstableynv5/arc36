@@ -4,6 +4,7 @@ from hashlib import md5 as hashfunc
 from pathlib import Path
 from typing import Optional
 
+import fiona
 import geopandas as gp
 
 
@@ -53,6 +54,21 @@ def compare_featureclass(path_a: Path, path_b: Path) -> bool:
     df_a = gp.read_file(path_a.parent, layer=path_a.name)
     df_b = gp.read_file(path_b.parent, layer=path_b.name)
     return df_a.equals(df_b)  # seems to account for geometry and crs
+
+
+def compare_gdb(path_a: Path, path_b: Path) -> bool:
+    fcs_a = sorted(set(fiona.listlayers(path_a)))
+    fcs_b = sorted(set(fiona.listlayers(path_b)))
+    if fcs_a != fcs_b:
+        return False
+
+    fcs_same = []
+    for fc_a, fc_b in zip(fcs_a, fcs_b):
+        a = path_a / fc_a
+        b = path_b / fc_b
+        fcs_same.append(compare_featureclass(a, b))
+
+    return all(fcs_same)
 
 
 def compare(path_a: Path, path_b: Path) -> bool:
