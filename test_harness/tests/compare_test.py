@@ -1,8 +1,9 @@
 from pathlib import Path
-from typing import Iterable
+from typing import Any
 
 import arcpy
 import geopandas as gp
+import pandas as pd
 import laspy
 import numpy as np
 import pyproj
@@ -12,6 +13,14 @@ from rasterio.transform import Affine
 from shapely.geometry import Point
 
 from compare import compare, compare_featureclass, compare_gdb, compare_hash
+
+# file types to test
+# text: txt, csv
+# images: tiff
+# las: las/laz
+# shapefile: shp
+# geodatabase: gdb (folder)
+# excel: xlsx
 
 
 def test_always_pass():
@@ -45,13 +54,6 @@ def test_compare_hash_two_dirs(tmp_path: Path):
 
     assert compare_hash(dir_a, dir_a)
     assert not compare_hash(dir_a, dir_b)
-
-
-# text: txt, csv
-# images: tiff
-# las: las/laz
-# shapefile: shp
-# geodatabase: gdb (folder)
 
 
 def test_compare_text_files(tmp_path: Path):
@@ -228,3 +230,27 @@ def test_compare_specialization_geodatabase(tmp_path: Path):
     # add an additional feature class, which should make a and aa differ
     arcpy.CreateFeatureclass_management(str(file_aa.parent), "extra_fc", "POINT")
     assert not compare_gdb(file_a.parent, file_aa.parent)
+
+
+def _write_xlsx(p: Path, data: dict[str, list[Any]]):
+    df = pd.DataFrame(data)
+    df.to_excel(p)
+
+
+def test_compare_excel(tmp_path: Path):
+    # 2 excel sheets with identical data
+    file_a = tmp_path / "sheet_a.xlsx"
+    data_a = {"A": [1, 2, 3], "B": ["x", "y", "z"]}
+    _write_xlsx(file_a, data_a)
+
+    file_aa = tmp_path / "sheet_aa.xlsx"
+    _write_xlsx(file_aa, data_a)
+
+    # 1 sheet with different data
+    file_b = tmp_path / "sheet_b.xlsx"
+    data_b = {"A": [0, 2, 3], "B": ["x", "y", "z"]}
+    _write_xlsx(file_b, data_b)
+
+    assert compare(file_a, file_a)
+    assert compare(file_a, file_aa)
+    assert not compare(file_a, file_b)
