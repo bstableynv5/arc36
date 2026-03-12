@@ -1,4 +1,3 @@
-# from typing import Protocol
 import hashlib
 from hashlib import md5 as hashfunc
 from pathlib import Path
@@ -51,12 +50,17 @@ def compare_hash(path_a: Path, path_b: Path) -> bool:
 
 
 def compare_featureclass(path_a: Path, path_b: Path) -> bool:
+    """Compares two feature classes for data equality. `path_a` and `path_b`
+    should include the feature class. eg `mydata.gdb/feature_class`."""
     df_a = gp.read_file(path_a.parent, layer=path_a.name)
     df_b = gp.read_file(path_b.parent, layer=path_b.name)
     return df_a.equals(df_b)  # seems to account for geometry and crs
 
 
 def compare_gdb(path_a: Path, path_b: Path) -> bool:
+    """Compares two geodatabases for 'equality' based on their set of
+    feature classes and data equality of those feature classes.
+    """
     fcs_a = sorted(set(fiona.listlayers(path_a)))
     fcs_b = sorted(set(fiona.listlayers(path_b)))
     if fcs_a != fcs_b:
@@ -71,8 +75,32 @@ def compare_gdb(path_a: Path, path_b: Path) -> bool:
     return all(fcs_same)
 
 
+TYPE_SPECIFIC_COMPARISONS = {
+    (".gdb", ".gdb"): compare_gdb,
+}
+"""Maps file extension to a specific comparison function for that type."""
+
+
 def compare(path_a: Path, path_b: Path) -> bool:
+    """Compares two files or directories for equality.
+
+    Equality in this context means that the important data contents of
+    each file (or of all files within a directory tree) are equal.
+
+    Args:
+        path_a (Path): the path to a file or directory
+        path_b (Path): the path to a file or directory
+
+    Returns:
+        bool: True if both paths are "equal"; False otherwise
+    """
+    file_pair_key = (path_a.suffix.lower(), path_b.suffix.lower())
+
     same = compare_hash(path_a, path_b)
-    if not same and path_a.suffix.lower() == ".gdb" and path_b.suffix.lower() == ".gdb":
-        same = compare_gdb(path_a, path_b)
+
+    if not same:
+        compare_func = TYPE_SPECIFIC_COMPARISONS.get(file_pair_key)
+        if compare_func is not None:
+            same = compare_func(path_a, path_b)
+
     return same
