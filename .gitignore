@@ -1,6 +1,8 @@
 arctests/
 docs_render/
 arcgis-pro*.pdf
+test_harness/docs/img
+test_harness/toolnames*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
