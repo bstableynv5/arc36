@@ -16,7 +16,7 @@ from typing import Any, Generator, Iterable, Literal, Optional, Union
 
 import arcpy
 import formats
-from compare import compare
+from compare import compare_all
 from db import DB
 from report_template import make_report_html
 from test import Parameter, Test, make_tests, normalize_toolbox_name, parameter_dict, parse_test_ini
@@ -250,11 +250,12 @@ def compare_test_outputs(
     """
     db = DB(str(config.database))
 
-    # TODO: setup_logger take N log files
-    for env in config.environments.keys():
-        run_logfile = config.logs_dir / formats.run_logfile(run_id, env)
-        logger = setup_logger(logging.getLogger(f"run_{run_id}"), run_logfile)
-    logger.info("comparing output files")
+    # all run-env logfiles will get a copy of the same messages
+    run_log_files = (
+        config.logs_dir / formats.run_logfile(run_id, env) for env in config.environments.keys()
+    )
+    logger = setup_logger(logging.getLogger(f"run_{run_id}"), run_log_files)
+    logger.info(f"comparing {test_id}")
 
     for test_path, test_id, test in tests:
         # each env's output directory in test folder
@@ -268,14 +269,13 @@ def compare_test_outputs(
             for output_dir in env_output_dirs
         )
         # transform from per-env to per-file
-        # TODO: upgrade comparison funcs for N inputs (ex: compare_all(*Path)->bool)
-        matched_file_sets = zip(*env_outputs)
-        matched_file_pairs = ((files[0], files[1]) for files in matched_file_sets)
-        # compare all sets
-        results = [(a.name, compare(a, b)) for a, b in matched_file_pairs]
+        matched_file_sets: Iterable[list[Path]] = zip(*env_outputs)
+        # do comparison among all files, keeping name of first one for logging
+        results = [(file_set[0].name, compare_all(*file_set)) for file_set in matched_file_sets]
+        # compare all results
         all_same = all(same for _, same in results)
         for name, same in results:
-            logger.info(f"{same=!s:6}{name}")
+            logger.info(f" {same=!s:6}{name}")
 
         # update all env entries for the test
         # TODO consider bulk env update
