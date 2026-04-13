@@ -115,8 +115,8 @@ class DB:
             "VALUES (?, ?, ?, ?, ?, ?) "
             "ON CONFLICT DO UPDATE SET "
             "status=excluded.status, "
-            "run_result=excluded.run_result, "
-            "compare_result=excluded.compare_result"  # TODO: prevent nullifying existing info
+            "run_result=ifnull(excluded.run_result, run_result), "  # don't nullify existing info
+            "compare_result=ifnull(excluded.compare_result, compare_result)"
         )
         with (
             self._lockfile,
