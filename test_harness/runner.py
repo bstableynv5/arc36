@@ -203,7 +203,7 @@ def run_all_tests(
     env_python = config.environments[env]
     runner = config.root_dir / "temp_harness" / "runner.py"
 
-    logger = setup_logger(logging.getLogger(f"run_{run_id}"), run_logfile)
+    logger = setup_logger(logging.getLogger(f"run_{run_id}"), run_logfile, add_timestamp=False)
     logger.info("RUN ALL")
     logger.debug(f"{env=}")
     logger.debug(f"{env_python=}")
@@ -254,10 +254,10 @@ def compare_test_outputs(
     run_log_files = (
         config.logs_dir / formats.run_logfile(run_id, env) for env in config.environments.keys()
     )
-    logger = setup_logger(logging.getLogger(f"run_{run_id}"), run_log_files)
-    logger.info(f"comparing {test_id}")
+    logger = setup_logger(logging.getLogger(f"run_{run_id}"), run_log_files, add_timestamp=False)
 
-    for test_path, test_id, test in tests:
+    for i, (test_path, test_id, test) in enumerate(tests):
+        logger.info(f"{i} COMPARE {test_id}")
         # each env's output directory in test folder
         env_output_dirs = (
             test_path.parent / formats.single_test_outputs(env, test_id)
@@ -275,12 +275,12 @@ def compare_test_outputs(
         # compare all results
         all_same = all(same for _, same in results)
         for name, same in results:
-            logger.info(f" {same=!s:6}{name}")
+            logger.info(f" {same=!s:<6}{name}")
 
         # update all env entries for the test
         # TODO consider bulk env update
         result = "PASS" if all_same else "FAIL"
-        logger.info(f"{test_id}: {result}")
+        logger.info(f" {result}")
         for env in config.environments.keys():
             db.update_test_status(run_id, env, test_id, "complete", compare_result=result)
 
