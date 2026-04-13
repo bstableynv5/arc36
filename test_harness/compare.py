@@ -104,3 +104,15 @@ def compare(path_a: Path, path_b: Path) -> bool:
             same = compare_func(path_a, path_b)
 
     return same
+
+
+def compare_all(*paths: Path) -> bool:
+    """Compares all files or directories for equality. See `compare()`.
+
+    Returns:
+        bool: True if all paths are "equal"; False otherwise.
+    """
+    first = paths[0]
+    rest = paths[1:]
+    same = all(compare(first, other) for other in rest)
+    return same
