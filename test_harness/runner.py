@@ -201,7 +201,7 @@ def run_all_tests(
     tests_dir = config.tests_dir
     run_logfile = config.logs_dir / formats.run_logfile(run_id, env)
     env_python = config.environments[env]
-    runner = config.root_dir / "temp_harness" / "runner.py"
+    runner = config.entry_point
 
     logger = setup_logger(logging.getLogger(f"run_{run_id}"), run_logfile, add_timestamp=False)
     logger.info("RUN ALL")
@@ -329,6 +329,7 @@ class GeneralConfig:
     tests_dir: Path  # tests
     logs_dir: Path  # logs
     database: Path  # sqlite database
+    entry_point: Path  # 'main' python file for this program
 
     def get_general_logger(self) -> logging.Logger:
         """Gets a logger for this program's activity."""
@@ -569,6 +570,7 @@ def open_config(config_file: Union[Path, str] = "config.json") -> GeneralConfig:
         tests_dir=Path(values["root_dir"], values["tests_dir"]),
         logs_dir=Path(values["root_dir"], values["logs_dir"]),
         database=Path(values["root_dir"], values["database"]),
+        entry_point=Path(values["root_dir"], values["entry_point"]),
     )
 
 
