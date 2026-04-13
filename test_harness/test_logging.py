@@ -2,7 +2,7 @@ import logging
 import sys
 from datetime import datetime as dt  # broken for no reason
 from pathlib import Path
-from typing import Any, Generator, Literal, Optional, Union
+from typing import Any, Generator, Iterable, Literal, Optional, Union
 
 import arcpy
 from formats import PSEUDO_ISO_FMT, EXTRA_PSEUDO_ISO_FMT
@@ -65,14 +65,17 @@ def get_null_logger() -> logging.Logger:
 
 
 def setup_logger(
-    logger: logging.Logger, log_file: Union[Path, str], add_timestamp: bool = True
+    logger: logging.Logger,
+    log_files: Union[Union[Path, str], Iterable[Union[Path, str]]],
+    add_timestamp: bool = True,
 ) -> logging.Logger:
     """Configures the logger passed and returns it. Does not create new loggers.
     Python logging module loggers are singletons based on the logger's "name".
 
     Args:
         logger (logging.Logger): the logger to configure
-        log_file (Union[Path, str]): a file path to which the log messages will
+        log_files (Union[Union[Path, str], Iterable[Union[Path, str]]]):
+            a file path (or paths) to which the log messages will
             be written in addition to the console.
         add_timestamp (bool, optional): append a compact ISO-style timestamp to
             the log filename. Defaults to True.
@@ -84,15 +87,20 @@ def setup_logger(
     logger.setLevel(logging.DEBUG)
     formatter = logging.Formatter("%(asctime)s:%(levelname)5s: %(message)s", datefmt=PSEUDO_ISO_FMT)
 
-    log_file = Path(log_file)
-    log_file.parent.mkdir(exist_ok=True, parents=True)
-    if add_timestamp:
-        datetag = f"_{dt.now():{EXTRA_PSEUDO_ISO_FMT}}"
-        log_file = log_file.with_stem(log_file.stem + datetag)
-    fh = logging.FileHandler(str(log_file), encoding="utf-8")
-    fh.setFormatter(formatter)
-    fh.setLevel(logging.DEBUG)
-    logger.addHandler(fh)
+    if isinstance(log_files, (Path, str)):
+        log_files = [log_files]
+
+    now = dt.now()
+    for log_file in log_files:
+        log_file = Path(log_file)
+        log_file.parent.mkdir(exist_ok=True, parents=True)
+        if add_timestamp:
+            datetag = f"_{now:{EXTRA_PSEUDO_ISO_FMT}}"
+            log_file = log_file.with_stem(log_file.stem + datetag)
+        fh = logging.FileHandler(str(log_file), encoding="utf-8")
+        fh.setFormatter(formatter)
+        fh.setLevel(logging.DEBUG)
+        logger.addHandler(fh)
 
     sh = logging.StreamHandler(stream=real_stdout)  # anti-kibana measure
     sh.setFormatter(formatter)

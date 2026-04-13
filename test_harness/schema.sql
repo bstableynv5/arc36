@@ -18,7 +18,7 @@ create table if not exists test_instances(
     run_id integer not null,
     env text not null, -- baseline, target
     id text not null,
-    status text not null, -- queued, waiting, running, complete TODO: comparing?
+    status text not null, -- queued, waiting, running, compare, comparing, complete
     run_result text default null, -- PASS, FAIL
     compare_result text default null, -- PASS, FAIL
 
@@ -34,8 +34,8 @@ create view if not exists complete_tests_passing as
         select
             run_id, 
             id, 
-            cast(min(ifnull(run_result, 0)=='PASS') as boolean) as run_passed, 
-            cast(min(ifnull(compare_result, 0)=='PASS') as boolean) as compare_passed 
+            cast(min(ifnull(run_result, 0)='PASS') as boolean) as run_passed, 
+            cast(min(ifnull(compare_result, 0)='PASS') as boolean) as compare_passed 
         from 
             test_instances
         where

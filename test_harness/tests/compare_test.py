@@ -12,7 +12,7 @@ import rasterio as rio
 from rasterio.transform import Affine
 from shapely.geometry import Point
 
-from compare import compare, compare_featureclass, compare_gdb, compare_hash
+from compare import compare, compare_featureclass, compare_gdb, compare_hash, compare_all
 
 # file types to test
 # text: txt, csv
@@ -254,3 +254,13 @@ def test_compare_excel(tmp_path: Path):
     assert compare(file_a, file_a)
     assert compare(file_a, file_aa)
     assert not compare(file_a, file_b)
+
+
+def test_compare_all(tmp_path: Path):
+    file_a = tmp_path / "a.txt"
+    file_a.write_text("some text")
+    file_b = tmp_path / "b.txt"
+    file_b.write_text("different text")
+
+    assert compare_all(file_a, file_a, file_a)
+    assert not compare_all(file_a, file_a, file_b)

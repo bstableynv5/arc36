@@ -115,8 +115,8 @@ class DB:
             "VALUES (?, ?, ?, ?, ?, ?) "
             "ON CONFLICT DO UPDATE SET "
             "status=excluded.status, "
-            "run_result=excluded.run_result, "
-            "compare_result=excluded.compare_result"
+            "run_result=ifnull(excluded.run_result, run_result), "  # don't nullify existing info
+            "compare_result=ifnull(excluded.compare_result, compare_result)"
         )
         with (
             self._lockfile,
@@ -213,6 +213,38 @@ class DB:
             assert len(run_ids) == 1
             run_id = run_ids.pop()  # get any since should be only 1
             conn.execute(update_status, (run_id, env))
+            return run_id, test_ids
+
+    def fetch_tests_for_comparison(self) -> tuple[int, set[str]]:
+        """Fetch tests from latest run where all envs have moved to
+        the 'compare' status. Updates them to 'comparing'.
+
+        Returns:
+            tuple[int, set[str]]: the run ID of the tests and the test IDs.
+        """
+        query_compare = (
+            "SELECT run_id, id FROM test_instances "
+            "WHERE run_id=(SELECT max(id) FROM runs WHERE start<=datetime('now')) "
+            "GROUP BY run_id, id "
+            "HAVING min(status='compare') != 0"  # groups where all 'env' values are 'compare'
+        )
+        update_status = (
+            "UPDATE test_instances SET status='comparing' "
+            "WHERE run_id=? AND id=? AND status='compare'"
+        )
+        with (
+            self._lockfile,
+            closing(sqlite3.connect(self._sqlite_file)) as conn,
+            conn,
+        ):
+            compares = conn.execute(query_compare).fetchall()
+            if not compares:
+                return (-1, set())
+            test_ids: set[str] = set(id for _, id in compares)
+            run_ids: set[int] = set(run_id for run_id, _ in compares)
+            assert len(run_ids) == 1
+            run_id = run_ids.pop()
+            conn.executemany(update_status, compares)
             return run_id, test_ids
 
     def set_run_endtime(self, run_id: int):

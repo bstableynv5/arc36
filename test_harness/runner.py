@@ -16,6 +16,7 @@ from typing import Any, Generator, Iterable, Literal, Optional, Union
 
 import arcpy
 import formats
+from compare import compare_all
 from db import DB
 from report_template import make_report_html
 from test import Parameter, Test, make_tests, normalize_toolbox_name, parameter_dict, parse_test_ini
@@ -172,13 +173,15 @@ def run_single_test(config: 'GeneralConfig', test_path: Path, run_id: int, env: 
         else:
             logger.info("saving no outputs")
 
-        # TODO: 'compare' instead of 'complete'
-        results.update_test_status(run_id, env, test_id, status="complete", run_result="PASS")
+        results.update_test_status(run_id, env, test_id, status="compare", run_result="PASS")
         logger.info("test finished\n")
 
     except TestFailException as e:
+        # failed tests still go to the comparison stage. with no/incomplete
+        # files produced, they should also fail there if compared to a
+        # a successful run in another env
         logger.critical(f"FAIL: {e}\n")
-        results.update_test_status(run_id, env, test_id, status="complete", run_result="FAIL")
+        results.update_test_status(run_id, env, test_id, status="compare", run_result="FAIL")
 
 
 def run_all_tests(
@@ -200,7 +203,7 @@ def run_all_tests(
     env_python = config.environments[env]
     runner = config.root_dir / "temp_harness" / "runner.py"
 
-    logger = setup_logger(logging.getLogger(f"run_{run_id}"), run_logfile)
+    logger = setup_logger(logging.getLogger(f"run_{run_id}"), run_logfile, add_timestamp=False)
     logger.info("RUN ALL")
     logger.debug(f"{env=}")
     logger.debug(f"{env_python=}")
@@ -235,6 +238,51 @@ def run_all_tests(
                 logger.debug(f"REMOVE {rm}")
                 shutil.rmtree(str(rm), ignore_errors=True)
     logger.info("FINISHED ALL")
+
+
+def compare_test_outputs(
+    config: 'GeneralConfig', run_id: int, tests: Iterable[tuple[Path, str, Test]]
+):
+    """
+    Compare every listed output of each test among the envs.
+    This is a little goofy since, until now, each env has been treated
+    separately but here they are 'grouped'.
+    """
+    db = DB(str(config.database))
+
+    # all run-env logfiles will get a copy of the same messages
+    run_log_files = (
+        config.logs_dir / formats.run_logfile(run_id, env) for env in config.environments.keys()
+    )
+    logger = setup_logger(logging.getLogger(f"run_{run_id}"), run_log_files, add_timestamp=False)
+
+    for i, (test_path, test_id, test) in enumerate(tests):
+        logger.info(f"{i} COMPARE {test_id}")
+        # each env's output directory in test folder
+        env_output_dirs = (
+            test_path.parent / formats.single_test_outputs(env, test_id)
+            for env in config.environments.keys()
+        )
+        # expected output files from test config for each env
+        env_outputs = (
+            [p[1] for p in test.resolve_outputs(Path(), output_dir)]  # only care about output paths
+            for output_dir in env_output_dirs
+        )
+        # transform from per-env to per-file
+        matched_file_sets: Iterable[list[Path]] = zip(*env_outputs)
+        # do comparison among all files, keeping name of first one for logging
+        results = [(file_set[0].name, compare_all(*file_set)) for file_set in matched_file_sets]
+        # compare all results
+        all_same = all(same for _, same in results)
+        for name, same in results:
+            logger.info(f" {same=!s:<6}{name}")
+
+        # update all env entries for the test
+        # TODO consider bulk env update
+        result = "PASS" if all_same else "FAIL"
+        logger.info(f" {result}")
+        for env in config.environments.keys():
+            db.update_test_status(run_id, env, test_id, "complete", compare_result=result)
 
 
 def create_new_tests(toolbox_dir: Path, tests_dir: Path, ignore: set[str]) -> tuple[int, int]:
@@ -362,6 +410,26 @@ class GeneralConfig:
             log.info("No queued tests eligible to run")
         log.debug("END CMD_RUN_ALL")
 
+    def cmd_compare_files(self, args: argparse.Namespace):
+        """Compare output files for tests where status for (runid, testid)
+        for all envs is "compare". Ultimately, when comparison is complete
+        the test will reach its final status "complete".
+        """
+        log = self.get_general_logger()
+        log.debug("START CMD_COMPARE")
+        # get all 'compare' tests (will transition to 'comparing')
+        db = DB(str(self.database))
+        run_id, test_ids_to_compare = db.fetch_tests_for_comparison()
+        if test_ids_to_compare:
+            log.info(f"{len(test_ids_to_compare)} tests fetched for output compare")
+            tests = [t for t in find_tests(self.tests_dir) if t[1] in test_ids_to_compare]
+            compare_test_outputs(self, run_id, tests)
+        else:
+            log.info("No tests eligible to compare")
+        # update test endtime
+        db.set_run_endtime(run_id)
+        log.debug("END CMD_COMPARE")
+
     def cmd_enqueue_tests(self, args: argparse.Namespace):
         """Schedule a run and tests for both environments, possibly at a later
         time. Normally schedules failed tests, but can also enqueue all tests
@@ -423,6 +491,10 @@ class GeneralConfig:
             help="environment name to run",
         )
         run_all.set_defaults(func=self.cmd_run_all_tests)
+
+        ######
+        compare = subparsers.add_parser("compare", help="compare outputs from tests")
+        compare.set_defaults(func=self.cmd_compare_files)
 
         # schedule #############################################################
         ######
@@ -514,6 +586,7 @@ def main():
     # --- env independent ---
     # SUBCOMMAND 1 - scan toolboxes, create default test no test for the tool exists
     # SUBCOMMAND 2 - enqueue tests for both envs, option to skip tests where both envs passed, set start time
+    # SUBCOMMAND 7 - compare output files from both envs for tests that have been run
     # SUBCOMMAND 5 - create report (html)
     # SUBCOMMAND 6 - normalize toolboxes -- rename toolbox folder and atbx
     # SUBCOMMAND ? - ?update sqlite database with test results
