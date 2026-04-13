@@ -16,6 +16,7 @@ from typing import Any, Generator, Iterable, Literal, Optional, Union
 
 import arcpy
 import formats
+from compare import compare
 from db import DB
 from report_template import make_report_html
 from test import Parameter, Test, make_tests, normalize_toolbox_name, parameter_dict, parse_test_ini
@@ -239,6 +240,34 @@ def run_all_tests(
     logger.info("FINISHED ALL")
 
 
+def compare_test_outputs(
+    config: 'GeneralConfig', run_id: int, tests: Iterable[tuple[Path, str, Test]]
+):
+    for test_path, test_id, test in tests:
+        # for each file listed in config outputs,
+        env_output_dirs = [
+            test_path.parent / formats.single_test_outputs(env, test_id)
+            for env in config.environments.keys()
+        ]
+        env_outputs = [
+            [p[1] for p in test.resolve_outputs(Path(), output_dir)]  # only care about output paths
+            for output_dir in env_output_dirs
+        ]
+        matched_file_sets = list(zip(*env_outputs))
+        #   get file for each env
+        for files in matched_file_sets:
+            a, b = files[0], files[1]  # TODO: upgrade comparison funcs for N inputs
+            #   run the comparison function
+            #     if true, pass, else fail
+            print(a)
+            print(b)
+            if compare(a, b):
+                print("SAME")
+            else:
+                print("DIFF")
+    #   update db status
+
+
 def create_new_tests(toolbox_dir: Path, tests_dir: Path, ignore: set[str]) -> tuple[int, int]:
     """Scans a directory of toolboxes and creates 'blank' template tool tests.
 
@@ -370,13 +399,14 @@ class GeneralConfig:
         the test will reach its final status "complete".
         """
         # get all 'compare' tests (will transition to 'comparing')
-        #   for each file listed in config outputs,
-        #     get file for each env
-        #     run the comparison function
-        #       if true, pass, else fail
-        #   update db status
+        db = DB(str(self.database))
+        run_id, test_ids_to_compare = db.fetch_tests_for_comparison()
+        if test_ids_to_compare:
+            tests = [t for t in find_tests(self.tests_dir) if t[1] in test_ids_to_compare]
+            compare_test_outputs(self, run_id, tests)
+        else:
+            pass
         # update test endtime
-        pass
 
     def cmd_enqueue_tests(self, args: argparse.Namespace):
         """Schedule a run and tests for both environments, possibly at a later
