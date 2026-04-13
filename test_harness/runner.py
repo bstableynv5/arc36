@@ -243,29 +243,46 @@ def run_all_tests(
 def compare_test_outputs(
     config: 'GeneralConfig', run_id: int, tests: Iterable[tuple[Path, str, Test]]
 ):
+    """
+    Compare every listed output of each test among the envs.
+    This is a little goofy since, until now, each env has been treated
+    separately but here they are 'grouped'.
+    """
+    db = DB(str(config.database))
+
+    # TODO: setup_logger take N log files
+    for env in config.environments.keys():
+        run_logfile = config.logs_dir / formats.run_logfile(run_id, env)
+        logger = setup_logger(logging.getLogger(f"run_{run_id}"), run_logfile)
+    logger.info("comparing output files")
+
     for test_path, test_id, test in tests:
-        # for each file listed in config outputs,
-        env_output_dirs = [
+        # each env's output directory in test folder
+        env_output_dirs = (
             test_path.parent / formats.single_test_outputs(env, test_id)
             for env in config.environments.keys()
-        ]
-        env_outputs = [
+        )
+        # expected output files from test config for each env
+        env_outputs = (
             [p[1] for p in test.resolve_outputs(Path(), output_dir)]  # only care about output paths
             for output_dir in env_output_dirs
-        ]
-        matched_file_sets = list(zip(*env_outputs))
-        #   get file for each env
-        for files in matched_file_sets:
-            a, b = files[0], files[1]  # TODO: upgrade comparison funcs for N inputs
-            #   run the comparison function
-            #     if true, pass, else fail
-            print(a)
-            print(b)
-            if compare(a, b):
-                print("SAME")
-            else:
-                print("DIFF")
-    #   update db status
+        )
+        # transform from per-env to per-file
+        # TODO: upgrade comparison funcs for N inputs (ex: compare_all(*Path)->bool)
+        matched_file_sets = zip(*env_outputs)
+        matched_file_pairs = ((files[0], files[1]) for files in matched_file_sets)
+        # compare all sets
+        results = [(a.name, compare(a, b)) for a, b in matched_file_pairs]
+        all_same = all(same for _, same in results)
+        for name, same in results:
+            logger.info(f"{same=!s:6}{name}")
+
+        # update all env entries for the test
+        # TODO consider bulk env update
+        result = "PASS" if all_same else "FAIL"
+        logger.info(f"{test_id}: {result}")
+        for env in config.environments.keys():
+            db.update_test_status(run_id, env, test_id, "complete", compare_result=result)
 
 
 def create_new_tests(toolbox_dir: Path, tests_dir: Path, ignore: set[str]) -> tuple[int, int]:
@@ -398,15 +415,20 @@ class GeneralConfig:
         for all envs is "compare". Ultimately, when comparison is complete
         the test will reach its final status "complete".
         """
+        log = self.get_general_logger()
+        log.debug("START CMD_COMPARE")
         # get all 'compare' tests (will transition to 'comparing')
         db = DB(str(self.database))
         run_id, test_ids_to_compare = db.fetch_tests_for_comparison()
         if test_ids_to_compare:
+            log.info(f"{len(test_ids_to_compare)} tests fetched for output compare")
             tests = [t for t in find_tests(self.tests_dir) if t[1] in test_ids_to_compare]
             compare_test_outputs(self, run_id, tests)
         else:
-            pass
+            log.info("No tests eligible to compare")
         # update test endtime
+        db.set_run_endtime(run_id)
+        log.debug("END CMD_COMPARE")
 
     def cmd_enqueue_tests(self, args: argparse.Namespace):
         """Schedule a run and tests for both environments, possibly at a later
