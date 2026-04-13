@@ -172,13 +172,15 @@ def run_single_test(config: 'GeneralConfig', test_path: Path, run_id: int, env: 
         else:
             logger.info("saving no outputs")
 
-        # TODO: 'compare' instead of 'complete'
-        results.update_test_status(run_id, env, test_id, status="complete", run_result="PASS")
+        results.update_test_status(run_id, env, test_id, status="compare", run_result="PASS")
         logger.info("test finished\n")
 
     except TestFailException as e:
+        # failed tests still go to the comparison stage. with no/incomplete
+        # files produced, they should also fail there if compared to a
+        # a successful run in another env
         logger.critical(f"FAIL: {e}\n")
-        results.update_test_status(run_id, env, test_id, status="complete", run_result="FAIL")
+        results.update_test_status(run_id, env, test_id, status="compare", run_result="FAIL")
 
 
 def run_all_tests(
@@ -362,6 +364,20 @@ class GeneralConfig:
             log.info("No queued tests eligible to run")
         log.debug("END CMD_RUN_ALL")
 
+    def cmd_compare_files(self, args: argparse.Namespace):
+        """Compare output files for tests where status for (runid, testid)
+        for all envs is "compare". Ultimately, when comparison is complete
+        the test will reach its final status "complete".
+        """
+        # get all 'compare' tests (will transition to 'comparing')
+        #   for each file listed in config outputs,
+        #     get file for each env
+        #     run the comparison function
+        #       if true, pass, else fail
+        #   update db status
+        # update test endtime
+        pass
+
     def cmd_enqueue_tests(self, args: argparse.Namespace):
         """Schedule a run and tests for both environments, possibly at a later
         time. Normally schedules failed tests, but can also enqueue all tests
@@ -423,6 +439,10 @@ class GeneralConfig:
             help="environment name to run",
         )
         run_all.set_defaults(func=self.cmd_run_all_tests)
+
+        ######
+        compare = subparsers.add_parser("compare", help="compare outputs from tests")
+        compare.set_defaults(func=self.cmd_compare_files)
 
         # schedule #############################################################
         ######
@@ -514,6 +534,7 @@ def main():
     # --- env independent ---
     # SUBCOMMAND 1 - scan toolboxes, create default test no test for the tool exists
     # SUBCOMMAND 2 - enqueue tests for both envs, option to skip tests where both envs passed, set start time
+    # SUBCOMMAND 7 - compare output files from both envs for tests that have been run
     # SUBCOMMAND 5 - create report (html)
     # SUBCOMMAND 6 - normalize toolboxes -- rename toolbox folder and atbx
     # SUBCOMMAND ? - ?update sqlite database with test results
